@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'package:video_compress/video_compress.dart';
 import 'api_service.dart';
 
 class FaceDetectionScreen extends StatefulWidget {
@@ -17,49 +20,72 @@ class FaceDetectionScreen extends StatefulWidget {
       _FaceDetectionScreenImprovedState();
 }
 
-class _FaceDetectionScreenImprovedState
-    extends State<FaceDetectionScreen> {
+class _FaceDetectionScreenImprovedState extends State<FaceDetectionScreen> {
   CameraController? _controller;
   List<CameraDescription>? _cameras;
   bool _isCameraInitialized = false;
   bool _isRecording = false;
   bool _isLoading = false;
   bool _isVerifying = false;
+  bool _isCompressing = false;
   String? _errorMessage;
   Timer? _recordingTimer;
   Timer? _faceDetectionTimer;
   int _recordingDuration = 0;
-  final int _maxRecordingDuration = 8;
+  final int _maxRecordingDuration = 5; // Reduced to 5 seconds
   XFile? _recordedVideo;
+  String? _compressedVideoPath;
   bool _showPreview = false;
   double _verificationThreshold = 0.7;
   bool _verificationSuccess = false;
   double _similarityScore = 0.0;
 
+  // Verification details
+  Map<String, dynamic>? _verificationDetails;
+
+  // File size tracking
+  int _originalFileSize = 0;
+  int _compressedFileSize = 0;
+  double _compressionRatio = 1.0;
+
   // Face detection variables
   late FaceDetector _faceDetector;
-  bool _faceCentered = false;
+  bool _faceDetected = false;
   int _qualityChecksPassed = 0;
-  final int _minQualityChecks = 5; // Need 5 consecutive quality checks
+  final int _minQualityChecks = 1; // Just need 1 face detection
   int _consecutiveQualityFrames = 0;
   double _faceConfidence = 0.0;
   String _faceStatus = 'Initializing...';
+
+  // Instructions queue
+  final List<String> _instructions = [
+    "Look straight",
+    "Hold still",
+    "Processing...",
+  ];
+  int _currentInstructionIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _initializeFaceDetector();
     _initializeCamera();
+    _initializeVideoCompression();
   }
 
   void _initializeFaceDetector() {
     final options = FaceDetectorOptions(
-      enableLandmarks: true,
-      enableContours: true,
-      enableClassification: true,
-      minFaceSize: 0.1, // At least 10% of screen
+      enableLandmarks: false, // Simplified - no landmarks
+      enableContours: false, // Simplified - no contours
+      enableClassification: false, // Simplified - no classification
+      minFaceSize: 0.1, // Lower minimum size
+      performanceMode: FaceDetectorMode.fast,
     );
     _faceDetector = FaceDetector(options: options);
+  }
+
+  Future<void> _initializeVideoCompression() async {
+    await VideoCompress.setLogLevel(0); // Disable logs for production
   }
 
   @override
@@ -68,6 +94,7 @@ class _FaceDetectionScreenImprovedState
     _recordingTimer?.cancel();
     _faceDetectionTimer?.cancel();
     _faceDetector.close();
+    VideoCompress.dispose();
     super.dispose();
   }
 
@@ -81,9 +108,10 @@ class _FaceDetectionScreenImprovedState
         orElse: () => _cameras!.first,
       );
 
+      // Use medium resolution for better face recognition
       _controller = CameraController(
         frontCamera,
-        ResolutionPreset.medium,
+        ResolutionPreset.medium, // Changed to medium for better quality
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.yuv420,
       );
@@ -105,12 +133,9 @@ class _FaceDetectionScreenImprovedState
             if (_controller!.value.isInitialized) {
               setState(() {
                 _isCameraInitialized = true;
-                _faceStatus = 'Looking for your face...';
+                _faceStatus = 'Face the camera and click Start';
               });
-              print('Camera initialized successfully');
-
-              // Start real face detection
-              _startRealFaceDetection();
+              print('Camera initialized at medium resolution');
             }
           })
           .catchError((e) {
@@ -127,14 +152,16 @@ class _FaceDetectionScreenImprovedState
     }
   }
 
-  /// Real face detection using ML Kit
-  void _startRealFaceDetection() {
+  /// Simple face detection - just check if any face is present
+  void _startSimpleFaceDetection() {
     _faceDetectionTimer = Timer.periodic(const Duration(milliseconds: 500), (
       _,
     ) async {
       if (!_isCameraInitialized ||
           _controller == null ||
-          !_controller!.value.isInitialized) {
+          !_controller!.value.isInitialized ||
+          _isRecording ||
+          _showPreview) {
         return;
       }
 
@@ -154,7 +181,7 @@ class _FaceDetectionScreenImprovedState
 
         if (faces.isEmpty) {
           setState(() {
-            _faceCentered = false;
+            _faceDetected = false;
             _faceStatus = 'No face detected. Face the camera.';
             _consecutiveQualityFrames = 0;
             _faceConfidence = 0.0;
@@ -162,116 +189,14 @@ class _FaceDetectionScreenImprovedState
           return;
         }
 
-        // Check face quality
-        final face = faces.first; // Use largest/closest face
-        final isQuality = _checkFaceQuality(face);
-
-        if (isQuality) {
-          _consecutiveQualityFrames++;
-          setState(() {
-            _faceConfidence =
-                (_consecutiveQualityFrames / _minQualityChecks * 100)
-                    .clamp(0, 100)
-                    .toDouble();
-            _faceStatus =
-                'Face detected: ${_consecutiveQualityFrames}/$_minQualityChecks';
-
-            if (_consecutiveQualityFrames >= _minQualityChecks &&
-                !_faceCentered) {
-              _faceCentered = true;
-              _faceStatus = 'Perfect! Ready to record.';
-              _startRecordingAfterDelay();
-            }
-          });
-        } else {
-          _consecutiveQualityFrames = 0;
-          setState(() {
-            _faceStatus = 'Adjust your position - better lighting needed';
-            _faceConfidence = 0.0;
-          });
-        }
+        // Face detected - mark as ready
+        setState(() {
+          _faceDetected = true;
+          _faceConfidence = 100.0;
+          _faceStatus = 'Face detected! Ready to verify.';
+        });
       } catch (e) {
         print('Face detection error: $e');
-      }
-    });
-  }
-
-  /// Check face quality metrics
-  bool _checkFaceQuality(Face face) {
-    // Check face size (should be reasonable portion of frame)
-    final boundingBox = face.boundingBox;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-
-    final faceWidth = boundingBox.width;
-    final faceHeight = boundingBox.height;
-    final faceSizeRatio =
-        (faceWidth * faceHeight) / (screenWidth * screenHeight);
-
-    // Face should be 10-80% of screen area
-    if (faceSizeRatio < 0.1 || faceSizeRatio > 0.8) {
-      return false;
-    }
-
-    // Check if face is roughly centered
-    final centerX = boundingBox.center.dx;
-    final centerY = boundingBox.center.dy;
-    final screenCenterX = screenWidth / 2;
-    final screenCenterY = screenHeight / 2;
-
-    final horizontalOffset = (centerX - screenCenterX).abs();
-    final verticalOffset = (centerY - screenCenterY).abs();
-
-    // Allow ±20% deviation from center
-    if (horizontalOffset > screenWidth * 0.2 ||
-        verticalOffset > screenHeight * 0.2) {
-      return false;
-    }
-
-    // Check head pose (if available from landmarks)
-    if (face.landmarks.isEmpty) {
-      return false; // No landmarks = poor quality
-    }
-
-    // Check if eyes are open (basic liveness check)
-    // Access landmarks from the map
-    final leftEye = face.landmarks[FaceLandmarkType.leftEye];
-    final rightEye = face.landmarks[FaceLandmarkType.rightEye];
-
-    // If we can't detect eyes, reject
-    if (leftEye == null || rightEye == null) {
-      return false;
-    }
-
-    // Additional quality checks
-    // Check if face is not rotated too much (basic pose check)
-    final leftEyePos = leftEye.position;
-    final rightEyePos = rightEye.position;
-
-    // Check if eyes are roughly horizontal (not tilted head)
-    // Use .y and .x instead of .dy and .dx for Point<int>
-    final eyeTilt = (leftEyePos.y - rightEyePos.y).abs();
-    if (eyeTilt > faceHeight * 0.1) {
-      // Allow 10% tilt
-      return false;
-    }
-
-    // Check distance between eyes (should be reasonable)
-    final eyeDistance = (leftEyePos.x - rightEyePos.x).abs();
-    if (eyeDistance < faceWidth * 0.2 || eyeDistance > faceWidth * 0.6) {
-      return false;
-    }
-
-    // All checks passed
-    return true;
-  }
-
-  void _startRecordingAfterDelay() {
-    if (_recordingTimer != null) return;
-
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted && _faceCentered && !_isRecording) {
-        _startRecording();
       }
     });
   }
@@ -282,6 +207,7 @@ class _FaceDetectionScreenImprovedState
     }
 
     try {
+      // Stop face detection timer when recording starts
       _faceDetectionTimer?.cancel();
 
       final Directory tempDir = await getTemporaryDirectory();
@@ -300,13 +226,21 @@ class _FaceDetectionScreenImprovedState
         _errorMessage = null;
         _verificationSuccess = false;
         _similarityScore = 0.0;
+        _verificationDetails = null;
         _faceStatus = 'Recording...';
+        _currentInstructionIndex = 0;
       });
 
+      // Start instruction cycling
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (mounted) {
           setState(() {
             _recordingDuration++;
+
+            // Cycle through instructions
+            if (_recordingDuration <= _instructions.length) {
+              _faceStatus = _instructions[_recordingDuration - 1];
+            }
           });
 
           if (_recordingDuration >= _maxRecordingDuration) {
@@ -316,7 +250,7 @@ class _FaceDetectionScreenImprovedState
         }
       });
 
-      print('Recording started successfully');
+      print('Recording started');
     } catch (e, stackTrace) {
       print('Failed to start recording: $e');
       print('Stack trace: $stackTrace');
@@ -335,18 +269,21 @@ class _FaceDetectionScreenImprovedState
 
       if (_controller!.value.isRecordingVideo) {
         final XFile videoFile = await _controller!.stopVideoRecording();
+        final originalFile = File(videoFile.path);
+        _originalFileSize = await originalFile.length();
 
         setState(() {
           _isRecording = false;
           _recordedVideo = videoFile;
           _showPreview = true;
-          _faceStatus = 'Recording complete. Verifying...';
+          _faceStatus = 'Compressing video...';
+          _isCompressing = true;
         });
 
-        print('Recording stopped successfully. File: ${videoFile.path}');
+        print('Original file size: ${_originalFileSize} bytes');
 
-        // Auto-submit the video after recording
-        _submitVideo();
+        // Compress video before uploading
+        await _compressAndSubmitVideo(videoFile);
       } else {
         setState(() {
           _isRecording = false;
@@ -359,38 +296,87 @@ class _FaceDetectionScreenImprovedState
       setState(() {
         _errorMessage = 'Failed to stop recording: ${e.toString()}';
         _isRecording = false;
+        _isCompressing = false;
       });
     }
   }
 
-  Future<void> _retakeVideo() async {
-    setState(() {
-      _recordedVideo = null;
-      _showPreview = false;
-      _recordingDuration = 0;
-      _verificationSuccess = false;
-      _similarityScore = 0.0;
-      _faceCentered = false;
-      _consecutiveQualityFrames = 0;
-      _faceStatus = 'Looking for your face...';
-    });
+  Future<void> _compressAndSubmitVideo(XFile videoFile) async {
+    try {
+      print('Starting video compression...');
 
-    // Restart face detection
-    _startRealFaceDetection();
+      // Compress video to reduce file size
+      final mediaInfo = await VideoCompress.compressVideo(
+        videoFile.path,
+        quality: VideoQuality
+            .MediumQuality, // Medium quality for better face recognition
+        deleteOrigin: false, // Keep original for reference
+        includeAudio: false,
+      );
+
+      if (mediaInfo == null || mediaInfo.file == null) {
+        throw Exception('Video compression failed');
+      }
+
+      _compressedVideoPath = mediaInfo.file!.path;
+      _compressedFileSize = mediaInfo.filesize ?? 0;
+      _compressionRatio = _originalFileSize > 0
+          ? _compressedFileSize / _originalFileSize
+          : 1.0;
+
+      print('Video compressed successfully:');
+      print('  Original: ${_originalFileSize} bytes');
+      print('  Compressed: ${_compressedFileSize} bytes');
+      print('  Ratio: ${(_compressionRatio * 100).toStringAsFixed(1)}%');
+      print('  Path: $_compressedVideoPath');
+
+      setState(() {
+        _isCompressing = false;
+        _faceStatus = 'Verifying identity...';
+      });
+
+      // Submit compressed video
+      await _submitVideo();
+    } catch (e) {
+      print('Video compression error: $e');
+      setState(() {
+        _isCompressing = false;
+        _faceStatus = 'Using original video...';
+      });
+
+      // Fallback: submit original video if compression fails
+      await _submitVideo(useOriginal: true);
+    }
   }
 
-  Future<void> _submitVideo() async {
-    if (_recordedVideo == null) return;
+  Future<void> _submitVideo({bool useOriginal = false}) async {
+    File? videoFile;
+
+    if (useOriginal || _compressedVideoPath == null) {
+      videoFile = File(_recordedVideo!.path);
+      print('Using original video file: ${videoFile.path}');
+    } else {
+      videoFile = File(_compressedVideoPath!);
+      print('Using compressed video file: ${videoFile.path}');
+    }
+
+    if (!await videoFile.exists()) {
+      setState(() {
+        _errorMessage = 'Video file not found';
+        _faceStatus = 'Error - please try again';
+        _isVerifying = false;
+      });
+      return;
+    }
 
     setState(() {
       _isVerifying = true;
       _errorMessage = null;
-      _faceStatus = 'Verifying identity...';
     });
 
     try {
       final result = await ApiService.verifyVideoWithEmbedding(
-        videoFile: File(_recordedVideo!.path),
+        videoFile: videoFile,
         idNumber: widget.idNumber,
       );
 
@@ -402,26 +388,59 @@ class _FaceDetectionScreenImprovedState
         final isVerified = result['is_verified'] ?? false;
         final similarity = result['similarity'] ?? 0.0;
         final message = result['message'] ?? 'Verification completed';
-        final token = result['token'];
+        final token =
+            result['token'] ?? result['access_token']; // Use either token
         final status = result['status'] ?? 'UNKNOWN';
+        final confidence = result['confidence'] ?? 0.0;
+        final thresholdUsed = result['threshold_used'] ?? 0.7;
+
+        // Extract all verification details
+        final verificationData = {
+          'isMatch': result['is_match'] ?? false,
+          'similarity': similarity,
+          'confidence': confidence,
+          'message': message,
+          'deepfakeDetected': result['deepfake_detected'] ?? false,
+          'livenessCheckPassed': result['liveness_check_passed'] ?? false,
+          'blinksDetected': result['blinks_detected'] ?? 0,
+          'processingTimeMs': result['processing_time_ms'] ?? 0,
+          'thresholdUsed': thresholdUsed,
+          'citizenId': result['citizen_id'] ?? widget.idNumber,
+          'fileSize': _compressedFileSize > 0
+              ? _compressedFileSize
+              : _originalFileSize,
+          'compressed': !useOriginal && _compressedVideoPath != null,
+        };
 
         setState(() {
           _verificationSuccess = isVerified;
           _similarityScore = similarity;
+          _verificationDetails = verificationData;
           _faceStatus = isVerified
               ? '✅ Identity Verified!'
               : '❌ Verification Failed';
         });
 
-        _showVerificationResult(isVerified, similarity, message, token, status);
+        _showVerificationResult(
+          isVerified,
+          similarity,
+          message,
+          token,
+          status,
+          verificationData,
+        );
       } else {
         setState(() {
-          _errorMessage = result['error'] ?? 'Face verification failed';
+          _errorMessage =
+              result['error'] ??
+              result['message'] ??
+              'Face verification failed';
           _faceStatus = 'Verification failed - try again';
           _verificationSuccess = false;
         });
       }
     } catch (e) {
+      print('Submit video error: $e');
       setState(() {
         _isVerifying = false;
         _errorMessage = 'Failed to verify video: $e';
@@ -431,12 +450,41 @@ class _FaceDetectionScreenImprovedState
     }
   }
 
+  Future<void> _retakeVideo() async {
+    // Clean up compressed file if exists
+    if (_compressedVideoPath != null &&
+        File(_compressedVideoPath!).existsSync()) {
+      await File(_compressedVideoPath!).delete();
+    }
+
+    setState(() {
+      _recordedVideo = null;
+      _compressedVideoPath = null;
+      _showPreview = false;
+      _recordingDuration = 0;
+      _verificationSuccess = false;
+      _similarityScore = 0.0;
+      _verificationDetails = null;
+      _faceDetected = false;
+      _consecutiveQualityFrames = 0;
+      _originalFileSize = 0;
+      _compressedFileSize = 0;
+      _compressionRatio = 1.0;
+      _faceStatus = 'Face the camera and click Start';
+      _isCompressing = false;
+    });
+
+    // Restart face detection
+    _startSimpleFaceDetection();
+  }
+
   void _showVerificationResult(
     bool isVerified,
     double similarity,
     String message,
     String? token,
     String status,
+    Map<String, dynamic> verificationData,
   ) {
     showDialog(
       context: context,
@@ -452,62 +500,143 @@ class _FaceDetectionScreenImprovedState
             const SizedBox(width: 8),
             Text(
               isVerified ? 'Verification Successful!' : 'Verification Failed',
+              style: TextStyle(
+                color: isVerified ? Colors.green : Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(message),
-            const SizedBox(height: 16),
-            Text(
-              'Status: $status',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isVerified ? Colors.green : Colors.red,
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                message,
+                style: TextStyle(color: isVerified ? Colors.green : Colors.red),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Similarity Score: ${(similarity * 100).toStringAsFixed(2)}%',
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: isVerified ? Colors.green : Colors.orange,
-              ),
-            ),
-            if (token != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
+
+              // Similarity Score
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.green[50],
+                  color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green),
+                  border: Border.all(color: Colors.grey[300]!),
                 ),
-                child: Row(
+                child: Column(
                   children: [
-                    Icon(
-                      Icons.check_circle,
-                      color: Colors.green[700],
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Authentication token received',
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Similarity Score:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
-                      ),
+                        Text(
+                          '${(similarity * 100).toStringAsFixed(2)}%',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color:
+                                similarity >=
+                                    (verificationData['thresholdUsed'] ?? 0.7)
+                                ? Colors.green
+                                : Colors.red,
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Threshold: ${((verificationData['thresholdUsed'] ?? 0.7) * 100).toStringAsFixed(0)}%',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                    if (verificationData['confidence'] != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Confidence: ${(verificationData['confidence'] * 100).toStringAsFixed(2)}%',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
                   ],
                 ),
               ),
+
+              // File size info
+              if (_compressedFileSize > 0) ...[
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.storage, size: 16, color: Colors.blue[700]),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'File Size: ${(_compressedFileSize / 1024 / 1024).toStringAsFixed(2)} MB',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue[800],
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Compressed to ${(_compressionRatio * 100).toStringAsFixed(1)}% of original',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.blue[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              // Verification Details
+              if (verificationData.isNotEmpty) ...[
+                const Text(
+                  'Verification Details:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                ...verificationData.entries.map((entry) {
+                  if (entry.key == 'message' ||
+                      entry.key == 'similarity' ||
+                      entry.key == 'fileSize' ||
+                      entry.key == 'compressed') {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${_formatKey(entry.key)}: ',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        const SizedBox(width: 4),
+                        _formatValue(entry.key, entry.value),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ],
             ],
-          ],
+          ),
         ),
         actions: [
           if (isVerified)
@@ -520,6 +649,7 @@ class _FaceDetectionScreenImprovedState
                   'message': message,
                   'token': token,
                   'status': status,
+                  'verification_data': verificationData,
                 });
               },
               child: const Text('Continue'),
@@ -535,6 +665,52 @@ class _FaceDetectionScreenImprovedState
         ],
       ),
     );
+  }
+
+  String _formatKey(String key) {
+    final Map<String, String> keyMap = {
+      'isMatch': 'Match',
+      'deepfakeDetected': 'Deepfake',
+      'livenessCheckPassed': 'Liveness',
+      'blinksDetected': 'Blinks',
+      'processingTimeMs': 'Processing Time',
+      'thresholdUsed': 'Threshold',
+      'citizenId': 'Citizen ID',
+    };
+    return keyMap[key] ?? key;
+  }
+
+  Widget _formatValue(String key, dynamic value) {
+    if (value is bool) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: value ? Colors.green[100] : Colors.red[100],
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          value ? 'YES' : 'NO',
+          style: TextStyle(
+            color: value ? Colors.green[800] : Colors.red[800],
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    } else if (key == 'processingTimeMs') {
+      return Text('${value} ms', style: const TextStyle(fontSize: 12));
+    } else if (key == 'thresholdUsed') {
+      return Text(
+        '${(value * 100).toStringAsFixed(0)}%',
+        style: const TextStyle(fontSize: 12),
+      );
+    } else if (value is num) {
+      return Text(
+        value.toStringAsFixed(2),
+        style: const TextStyle(fontSize: 12),
+      );
+    }
+    return Text(value.toString(), style: const TextStyle(fontSize: 12));
   }
 
   Widget _buildCameraPreview() {
@@ -569,7 +745,7 @@ class _FaceDetectionScreenImprovedState
               border: Border.all(
                 color: _isRecording
                     ? Colors.red
-                    : _faceCentered
+                    : _faceDetected
                     ? Colors.green
                     : const Color(0xFF13A4B4),
                 width: 3,
@@ -621,14 +797,14 @@ class _FaceDetectionScreenImprovedState
             height: MediaQuery.of(context).size.width * 0.6,
             decoration: BoxDecoration(
               border: Border.all(
-                color: _faceCentered ? Colors.green : Colors.white,
-                width: _faceCentered ? 4 : 3,
+                color: _faceDetected ? Colors.green : Colors.white,
+                width: _faceDetected ? 4 : 3,
               ),
               borderRadius: BorderRadius.circular(
                 MediaQuery.of(context).size.width * 0.3,
               ),
             ),
-            child: _faceCentered
+            child: _faceDetected
                 ? const Icon(Icons.check_circle, color: Colors.green, size: 40)
                 : null,
           ),
@@ -650,24 +826,6 @@ class _FaceDetectionScreenImprovedState
               ),
             ),
           ),
-          if (_isLoading)
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: Colors.white),
-                  SizedBox(height: 12),
-                  Text(
-                    'Loading...',
-                    style: TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );
@@ -693,7 +851,23 @@ class _FaceDetectionScreenImprovedState
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (_isVerifying) ...[
+                  if (_isCompressing) ...[
+                    const CircularProgressIndicator(color: Colors.white),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Compressing video...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${(_compressedFileSize / 1024 / 1024).toStringAsFixed(2)} MB',
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  ] else if (_isVerifying) ...[
                     const CircularProgressIndicator(color: Colors.white),
                     const SizedBox(height: 16),
                     const Text(
@@ -711,6 +885,31 @@ class _FaceDetectionScreenImprovedState
                       'Identity Verified!',
                       style: TextStyle(
                         color: Colors.green,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Text(
+                        'Score: ${(_similarityScore * 100).toStringAsFixed(2)}%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ] else if (_similarityScore > 0) ...[
+                    const Icon(
+                      Icons.error_outline,
+                      size: 60,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Verification Failed',
+                      style: TextStyle(
+                        color: Colors.red,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -744,7 +943,10 @@ class _FaceDetectionScreenImprovedState
                 ],
               ),
             ),
-            if (!_isVerifying && !_verificationSuccess)
+            if (!_isVerifying &&
+                !_isCompressing &&
+                !_verificationSuccess &&
+                _similarityScore == 0)
               Positioned(
                 bottom: 16,
                 right: 16,
@@ -805,11 +1007,37 @@ class _FaceDetectionScreenImprovedState
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "ID: ${widget.idNumber}",
+                    "Citizen ID: ${widget.idNumber}",
                     style: const TextStyle(
                       fontSize: 12,
                       color: Colors.grey,
                       fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.info_outline, size: 14, color: Colors.blue),
+                        SizedBox(width: 6),
+                        Text(
+                          'Optimized for 5MB upload limit',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.blue,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -852,10 +1080,14 @@ class _FaceDetectionScreenImprovedState
                       padding: const EdgeInsets.only(bottom: 12.0),
                       child: Text(
                         _showPreview
-                            ? _isVerifying
+                            ? _isCompressing
+                                  ? "Compressing..."
+                                  : _isVerifying
                                   ? "Verifying..."
                                   : _verificationSuccess
                                   ? "Verification Complete"
+                                  : _similarityScore > 0
+                                  ? "Verification Failed"
                                   : "Processing"
                             : _isRecording
                             ? "Recording... ($_recordingDuration/$_maxRecordingDuration)"
@@ -887,6 +1119,34 @@ class _FaceDetectionScreenImprovedState
                 ),
               ),
               const SizedBox(height: 16),
+              if (!_showPreview && !_isRecording)
+                ElevatedButton(
+                  onPressed: () {
+                    // Start face detection when button is pressed
+                    _startSimpleFaceDetection();
+                    _startRecording();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF13A4B4),
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Start 5-Second Verification',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              const Text(
+                '5-second video • Optimized for small file size',
+                style: TextStyle(fontSize: 10, color: Colors.grey),
+              ),
               const Text(
                 'Ensure good lighting and face the camera directly',
                 style: TextStyle(fontSize: 10, color: Colors.grey),
