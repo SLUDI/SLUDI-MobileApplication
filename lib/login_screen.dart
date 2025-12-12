@@ -906,338 +906,316 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: Colors.white.withOpacity(0.9),
                         ),
                       ),
-
-                const SizedBox(height: 40),
-
-                // DID field header with device lock indicator
-                Row(
-                  children: [
-                    const Text(
-                      '12 Digit Number',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (_isDidLocked) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.green.withOpacity(0.5)),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(
-                              Icons.verified_user,
-                              size: 14,
-                              color: Colors.green,
-                            ),
-                            SizedBox(width: 6),
-                            Text(
-                              'Registered',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
+                      if (_isDidLocked) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.green.withOpacity(0.5)),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(
+                                Icons.verified_user,
+                                size: 14,
                                 color: Colors.green,
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Conditional DID field - locked or editable
-                if (_isDidLocked)
-                  // Locked DID display
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 18,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withOpacity(0.2)),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.badge_outlined,
-                          color: Colors.white.withOpacity(0.7),
-                          size: 22,
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            _didController.text,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                        ),
-                        Icon(
-                          Icons.lock_outline,
-                          color: Colors.white.withOpacity(0.5),
-                          size: 20,
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  // Editable DID field
-                  TextFormField(
-                    controller: _didController,
-                    keyboardType: TextInputType.number,
-                    maxLength: 12,
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
-                    decoration: AppTheme.inputDecoration(
-                      hintText: 'Enter your 12 Digit DID',
-                      prefixIcon: Icons.badge_outlined,
-                    ).copyWith(counterText: ''),
-                  ),
-
-                // Helper text for locked DID
-                if (_isDidLocked)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10.0, left: 4.0),
-                    child: Row(
-                      children: [
-                        Icon(Icons.security, size: 14, color: Colors.green.withOpacity(0.8)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'This device is secured to this Digital ID',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white.withOpacity(0.6),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                const SizedBox(height: 20),
-
-                // Password field
-                Text(
-                  'Password',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white.withOpacity(0.9)),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  style: const TextStyle(color: Colors.white, fontSize: 18),
-                  decoration: AppTheme.inputDecoration(
-                    hintText: 'Enter your password',
-                    prefixIcon: Icons.lock_outline,
-                  ).copyWith(
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: Colors.white.withOpacity(0.5),
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                // Forgot password and Clear lock
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF13A4B4),
-                      ),
-                      onPressed: () {
-                        // Add forgot password functionality
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Forgot password feature coming soon',
-                            ),
-                          ),
-                        );
-                      },
-                      child: const Text('Forgot your Password'),
-                    ),
-                    if (_isDidLocked)
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.red,
-                        ),
-                        onPressed: _clearDeviceLock,
-                        child: const Text('Clear Device Lock'),
-                      ),
-                  ],
-                ),
-
-                const SizedBox(height: 32),
-
-                // Sign in button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleEmailPasswordLogin,
-                    style: AppTheme.primaryButtonStyle,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                              SizedBox(width: 6),
+                              Text(
+                                'Registered',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
                               ),
-                            ),
-                          )
-                        : const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.login_rounded, size: 22),
-                              SizedBox(width: 10),
-                              Text('Sign In', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
                           ),
-                  ),
-                ),
-
-                // Offline Authentication Button
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _showOfflineAuthDialog,
-                    icon: const Icon(Icons.qr_code_2),
-                    label: const Text('Offline Authentication'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Register button for new users
-                const SizedBox(height: 24),
-                Center(
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF13A4B4),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                    ),
-                    onPressed: _isLoading
-                        ? null
-                        : () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => IDVerificationScreen(),
-                              ),
-                            );
-                          },
-                    child: const Text(
-                      'Don\'t have an account? Register',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Biometric authentication
-                if (_supportState)
-                  Center(
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Or login with',
-                          style: TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Row with Face ID and Fingerprint
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Face ID Button
-                            ElevatedButton(
-                              onPressed: _isLoading
-                                  ? null
-                                  : _authenticateWithFaceId,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color.fromARGB(
-                                  255,
-                                  214,
-                                  214,
-                                  214,
-                                ).withOpacity(0.1),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                padding: const EdgeInsets.all(16),
-                                elevation: 0,
-                                minimumSize: const Size(80, 80),
-                              ),
-                              child: const Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.face,
-                                    size: 32,
-                                    color: Color(0xFF13A4B4),
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Face ID',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF13A4B4),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(width: 20),
-                          ],
                         ),
                       ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Conditional DID field - locked or editable
+                  if (_isDidLocked)
+                    // Locked DID display
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 18,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white.withOpacity(0.2)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.badge_outlined,
+                            color: Colors.white.withOpacity(0.7),
+                            size: 22,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Text(
+                              _didController.text,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.lock_outline,
+                            color: Colors.white.withOpacity(0.5),
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    // Editable DID field
+                    TextFormField(
+                      controller: _didController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 12,
+                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                      decoration: AppTheme.inputDecoration(
+                        hintText: 'Enter your 12 Digit DID',
+                        prefixIcon: Icons.badge_outlined,
+                      ).copyWith(counterText: ''),
+                    ),
+
+                  // Helper text for locked DID
+                  if (_isDidLocked)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10.0, left: 4.0),
+                      child: Row(
+                        children: [
+                          Icon(Icons.security, size: 14, color: Colors.green.withOpacity(0.8)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'This device is secured to this Digital ID',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withOpacity(0.6),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  const SizedBox(height: 20),
+
+                  // Password field
+                  Text(
+                    'Password',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white.withOpacity(0.9)),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                    decoration: AppTheme.inputDecoration(
+                      hintText: 'Enter your password',
+                      prefixIcon: Icons.lock_outline,
+                    ).copyWith(
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: Colors.white.withOpacity(0.5),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
                     ),
                   ),
-              ],
+
+                  const SizedBox(height: 8),
+
+                  // Forgot password and Clear lock
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.primaryColor,
+                        ),
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Forgot password feature coming soon'),
+                            ),
+                          );
+                        },
+                        child: const Text('Forgot your Password'),
+                      ),
+                      if (_isDidLocked)
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.red,
+                          ),
+                          onPressed: _clearDeviceLock,
+                          child: const Text('Clear Device Lock'),
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Sign in button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _handleEmailPasswordLogin,
+                      style: AppTheme.primaryButtonStyle,
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.login_rounded, size: 22),
+                                SizedBox(width: 10),
+                                Text('Sign In', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                    ),
+                  ),
+
+                  // Offline Authentication Button
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _showOfflineAuthDialog,
+                      icon: const Icon(Icons.qr_code_2),
+                      label: const Text('Offline Authentication'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                  ),
+                ),
+
+                  // Register button for new users
+                  const SizedBox(height: 24),
+                  Center(
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.primaryColor,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                      ),
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => IDVerificationScreen(),
+                                ),
+                              );
+                            },
+                      child: const Text(
+                        'Don\'t have an account? Register',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Biometric authentication
+                  if (_supportState)
+                    Center(
+                      child: Column(
+                        children: [
+                          Text(
+                            'Or login with',
+                            style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.6)),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Row with Face ID
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Face ID Button
+                              ElevatedButton(
+                                onPressed: _isLoading
+                                    ? null
+                                    : _authenticateWithFaceId,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white.withOpacity(0.1),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  padding: const EdgeInsets.all(16),
+                                  elevation: 0,
+                                  minimumSize: const Size(80, 80),
+                                ),
+                                child: const Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.face,
+                                      size: 32,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Face ID',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(width: 20),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),

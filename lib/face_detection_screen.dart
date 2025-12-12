@@ -840,99 +840,100 @@ class _FaceDetectionScreenImprovedState extends State<FaceDetectionScreen> {
                     const SizedBox(width: 48),
                   ],
                 ),
-              const SizedBox(height: 16),
-              if (_errorMessage != null)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                const SizedBox(height: 16),
+                if (_errorMessage != null)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: TextStyle(color: Colors.red.shade300, fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Row(
+                Expanded(
+                  child: Column(
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 18),
-                      const SizedBox(width: 10),
-                      Expanded(
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
                         child: Text(
-                          _errorMessage!,
-                          style: TextStyle(color: Colors.red.shade300, fontSize: 13),
+                          _isLoading || _isVerifying
+                              ? _faceStatus
+                              : _verificationSuccess || _similarityScore > 0
+                                  ? 'Verification Result'
+                                  : _isRecording
+                                      ? 'Recording... ($_recordingDuration/$_maxRecordingDuration)'
+                                      : _faceStatus,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
+                      Expanded(
+                        child: _isLoading || _isVerifying
+                            ? _buildLoadingScreen()
+                            : (_verificationSuccess || _similarityScore > 0)
+                                ? _buildResultScreen()
+                                : _buildCameraPreview(),
+                      ),
+                      if (_isRecording) ...[
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: LinearProgressIndicator(
+                            value: _recordingDuration / _maxRecordingDuration,
+                            backgroundColor: Colors.white.withOpacity(0.1),
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
+                            minHeight: 6,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
-              Expanded(
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: Text(
-                        _isLoading || _isVerifying
-                            ? _faceStatus
-                            : _verificationSuccess || _similarityScore > 0
-                                ? 'Verification Result'
-                                : _isRecording
-                                    ? 'Recording... ($_recordingDuration/$_maxRecordingDuration)'
-                                    : _faceStatus,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white.withOpacity(0.8),
+                const SizedBox(height: 16),
+                if (!_isLoading &&
+                    !_isVerifying &&
+                    !_verificationSuccess &&
+                    _similarityScore == 0 &&
+                    !_isRecording)
+                  ElevatedButton(
+                    onPressed: () {
+                      _startSimpleFaceDetection();
+                      _startRecording();
+                    },
+                    style: AppTheme.primaryButtonStyle,
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.videocam_rounded, size: 22),
+                        SizedBox(width: 10),
+                        Text(
+                          'Start 5-Second Verification',
+                          style: TextStyle(fontSize: 16, foface_detection_screenntWeight: FontWeight.bold),
                         ),
-                        textAlign: TextAlign.center,
-                      ),
+                      ],
                     ),
-                    Expanded(
-                      child: _isLoading || _isVerifying
-                          ? _buildLoadingScreen()
-                          : (_verificationSuccess || _similarityScore > 0)
-                              ? _buildResultScreen()
-                              : _buildCameraPreview(),
-                    ),
-                    if (_isRecording) ...[
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: _recordingDuration / _maxRecordingDuration,
-                          backgroundColor: Colors.white.withOpacity(0.1),
-                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
-                          minHeight: 6,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (!_isLoading &&
-                  !_isVerifying &&
-                  !_verificationSuccess &&
-                  _similarityScore == 0 &&
-                  !_isRecording)
-                ElevatedButton(
-                  onPressed: () {
-                    _startSimpleFaceDetection();
-                    _startRecording();
-                  },
-                  style: AppTheme.primaryButtonStyle,
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.videocam_rounded, size: 22),
-                      SizedBox(width: 10),
-                      Text(
-                        'Start 5-Second Verification',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ],
                   ),
-                ),
-              const SizedBox(height: 12),
-            ],
+                const SizedBox(height: 12),
+              ],
+            ),
           ),
         ),
       ),
@@ -987,7 +988,7 @@ class CircleOverlayPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     
     canvas.drawCircle(center, circleRadius * 0.8, guidePaint);
-  }
+  }face_detection_screen
 
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => true;
