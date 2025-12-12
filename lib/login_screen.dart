@@ -14,6 +14,7 @@ import 'package:new_project/face_detection_screen.dart';
 import 'package:new_project/id_verification_screen.dart';
 import 'package:new_project/offline_auth_dialog.dart';
 import 'package:new_project/storage_service.dart';
+import 'package:new_project/app_theme.dart';
 import 'package:pointycastle/api.dart' hide Padding;
 import 'package:pointycastle/digests/sha256.dart';
 import 'package:pointycastle/ecc/api.dart';
@@ -867,37 +868,44 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Container(
         constraints: const BoxConstraints.expand(),
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFFFFF), // White
-              Color(0xFFD6E6F2), // Light blue
-            ],
-            stops: [0.1, 0.9],
-          ),
+          gradient: AppTheme.darkGradient,
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 60),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
 
-                // Title
-                const Text(
-                  'Login here',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                ),
+                  // Title
+                  const Text(
+                    'Welcome Back',
+                    style: AppTheme.headingStyle,
+                  ),
 
-                const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
-                // Welcome message
-                const Text(
-                  "Welcome back you've been missed",
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
+                  // Welcome message
+                  Text(
+                    "Sign in to access your digital wallet",
+                    style: AppTheme.subtitleStyle,
+                  ),
+
+                  const SizedBox(height: 40),
+
+                  // DID field header with device lock indicator
+                  Row(
+                    children: [
+                      Text(
+                        '12 Digit Number',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
 
                 const SizedBox(height: 40),
 
@@ -915,28 +923,28 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
+                          horizontal: 10,
+                          vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.green[50],
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.green),
+                          color: Colors.green.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.green.withOpacity(0.5)),
                         ),
-                        child: Row(
+                        child: const Row(
                           children: [
                             Icon(
-                              Icons.check_circle,
-                              size: 12,
-                              color: Colors.green[700],
+                              Icons.verified_user,
+                              size: 14,
+                              color: Colors.green,
                             ),
-                            const SizedBox(width: 4),
+                            SizedBox(width: 6),
                             Text(
-                              'Device Registered',
+                              'Registered',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.green[700],
+                                color: Colors.green,
                               ),
                             ),
                           ],
@@ -953,46 +961,37 @@ class _LoginScreenState extends State<LoginScreen> {
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
+                      horizontal: 20,
+                      vertical: 18,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFDDDDDD)),
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.2)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(
-                          Icons.credit_card,
-                          color: Colors.grey,
-                          size: 20,
+                        Icon(
+                          Icons.badge_outlined,
+                          color: Colors.white.withOpacity(0.7),
+                          size: 22,
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 14),
                         Expanded(
                           child: Text(
                             _didController.text,
                             style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.black87,
+                              fontSize: 18,
+                              color: Colors.white,
                               fontWeight: FontWeight.w500,
+                              letterSpacing: 1,
                             ),
                           ),
                         ),
-                        const Icon(
+                        Icon(
                           Icons.lock_outline,
-                          color: Colors.grey,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Tooltip(
-                          message:
-                              'This device is registered to this Digital ID',
-                          child: Icon(
-                            Icons.info_outline,
-                            color: Colors.blue[300],
-                            size: 18,
-                          ),
+                          color: Colors.white.withOpacity(0.5),
+                          size: 20,
                         ),
                       ],
                     ),
@@ -1003,36 +1002,28 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _didController,
                     keyboardType: TextInputType.number,
                     maxLength: 12,
-                    decoration: InputDecoration(
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                    decoration: AppTheme.inputDecoration(
                       hintText: 'Enter your 12 Digit DID',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      prefixIcon: const Icon(Icons.credit_card),
-                      counterText: '',
-                    ),
+                      prefixIcon: Icons.badge_outlined,
+                    ).copyWith(counterText: ''),
                   ),
 
                 // Helper text for locked DID
                 if (_isDidLocked)
                   Padding(
-                    padding: const EdgeInsets.only(top: 8.0, left: 8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    padding: const EdgeInsets.only(top: 10.0, left: 4.0),
+                    child: Row(
                       children: [
-                        Text(
-                          'This device is registered to this Digital ID.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green[700],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          'For security, you can only use this ID on this device.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
+                        Icon(Icons.security, size: 14, color: Colors.green.withOpacity(0.8)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'This device is secured to this Digital ID',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white.withOpacity(0.6),
+                            ),
                           ),
                         ),
                       ],
@@ -1042,26 +1033,25 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
 
                 // Password field
-                const Text(
+                Text(
                   'Password',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white.withOpacity(0.9)),
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
-                  decoration: InputDecoration(
+                  style: const TextStyle(color: Colors.white, fontSize: 18),
+                  decoration: AppTheme.inputDecoration(
                     hintText: 'Enter your password',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    prefixIcon: const Icon(Icons.lock),
+                    prefixIcon: Icons.lock_outline,
+                  ).copyWith(
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
                             ? Icons.visibility_off
                             : Icons.visibility,
-                        color: Colors.grey,
+                        color: Colors.white.withOpacity(0.5),
                       ),
                       onPressed: () {
                         setState(() {
@@ -1105,33 +1095,33 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
 
                 // Sign in button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleEmailPasswordLogin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF13A4B4),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+                    style: AppTheme.primaryButtonStyle,
                     child: _isLoading
                         ? const SizedBox(
-                            height: 20,
-                            width: 20,
+                            height: 22,
+                            width: 22,
                             child: CircularProgressIndicator(
-                              strokeWidth: 2,
+                              strokeWidth: 2.5,
                               valueColor: AlwaysStoppedAnimation<Color>(
                                 Colors.white,
                               ),
                             ),
                           )
-                        : const Text('Sign in', style: TextStyle(fontSize: 18)),
+                        : const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.login_rounded, size: 22),
+                              SizedBox(width: 10),
+                              Text('Sign In', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
                   ),
                 ),
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:new_project/main_screen.dart';
 import 'package:new_project/offline_auth_service.dart';
 import 'package:new_project/storage_service.dart';
+import 'package:new_project/app_theme.dart';
 import '../models/presentation_request.dart';
 import '../models/verifiable_presentation.dart';
 import '../models/credential.dart';
@@ -426,12 +427,17 @@ class _PresentationApprovalScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Share Your Information'), elevation: 0),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? _buildErrorView()
-          : _buildApprovalView(),
+      backgroundColor: AppTheme.darkBg1,
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppTheme.darkGradient),
+        child: SafeArea(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
+              : _errorMessage != null
+                  ? _buildErrorView()
+                  : _buildApprovalView(),
+        ),
+      ),
     );
   }
 
@@ -439,22 +445,35 @@ class _PresentationApprovalScreenState
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            Text(
-              _errorMessage!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Go Back'),
-            ),
-          ],
+        child: Container(
+          padding: const EdgeInsets.all(32),
+          decoration: AppTheme.glassDecoration(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.error_outline, size: 40, color: Colors.red),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8)),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: AppTheme.primaryButtonStyle,
+                child: const Text('Go Back'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -463,118 +482,157 @@ class _PresentationApprovalScreenState
   Widget _buildApprovalView() {
     return Column(
       children: [
+        // Header
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                ),
+              ),
+              const Expanded(
+                child: Text(
+                  'Share Information',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 48),
+            ],
+          ),
+        ),
+        
         Expanded(
           child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Request info card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey.shade300),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.business, color: Colors.blue.shade700),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _presentationRequest!.requesterName,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade900,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Request info card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: AppTheme.glassDecoration(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.business_rounded, color: AppTheme.primaryColor),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _presentationRequest!.requesterName,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _presentationRequest!.purpose,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white.withOpacity(0.7),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Purpose: ${_presentationRequest!.purpose}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade700,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.access_time, size: 16, color: Colors.orange.shade300),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Expires: ${_formatDateTime(_presentationRequest!.expiresAt)}',
+                                style: TextStyle(fontSize: 12, color: Colors.orange.shade300),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Expires: ${_formatDateTime(_presentationRequest!.expiresAt)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-
-                // Information section
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Select information to share:',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'The organization is requesting the following information. You can choose what to share.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Attribute list
-                      ..._presentationRequest!.requestedAttributes
-                          .map((attribute) => _buildAttributeCard(attribute))
-                          .toList(),
-                    ],
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Information section
+                  Text(
+                    'Select information to share',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    'Choose what data you want to share with this organization.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.6),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Attribute list
+                  ..._presentationRequest!.requestedAttributes
+                      .map((attribute) => _buildAttributeCard(attribute))
+                      .toList(),
+                ],
+              ),
             ),
           ),
         ),
 
         // Action buttons
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.shade300,
-                blurRadius: 4,
-                offset: const Offset(0, -2),
-              ),
-            ],
+            color: AppTheme.darkBg2,
+            border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
           ),
           child: Row(
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: _isSubmitting
-                      ? null
-                      : () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
+                  onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+                  style: AppTheme.outlineButtonStyle,
                   child: const Text('Cancel'),
                 ),
               ),
@@ -582,20 +640,24 @@ class _PresentationApprovalScreenState
               Expanded(
                 child: ElevatedButton(
                   onPressed: _isSubmitting ? null : _submitPresentation,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: Colors.blue,
-                  ),
+                  style: AppTheme.primaryButtonStyle,
                   child: _isSubmitting
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
+                          height: 22,
+                          width: 22,
                           child: CircularProgressIndicator(
-                            strokeWidth: 2,
+                            strokeWidth: 2.5,
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Share Information'),
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.share_rounded, size: 20),
+                            SizedBox(width: 8),
+                            Text('Share'),
+                          ],
+                        ),
                 ),
               ),
             ],
@@ -606,10 +668,19 @@ class _PresentationApprovalScreenState
   }
 
   Widget _buildAttributeCard(String attribute) {
-    return Card(
+    final isSelected = _selectedAttributes[attribute] ?? false;
+    
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isSelected ? AppTheme.primaryColor.withOpacity(0.15) : Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected ? AppTheme.primaryColor.withOpacity(0.5) : Colors.white.withOpacity(0.1),
+        ),
+      ),
       child: CheckboxListTile(
-        value: _selectedAttributes[attribute] ?? false,
+        value: isSelected,
         onChanged: (bool? value) {
           setState(() {
             _selectedAttributes[attribute] = value ?? false;
@@ -617,13 +688,16 @@ class _PresentationApprovalScreenState
         },
         title: Text(
           _getAttributeDisplayName(attribute),
-          style: const TextStyle(fontWeight: FontWeight.w600),
+          style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
         ),
         subtitle: Text(
           _getAttributeValue(attribute),
-          style: TextStyle(color: Colors.grey.shade700),
+          style: TextStyle(color: Colors.white.withOpacity(0.6)),
         ),
         controlAffinity: ListTileControlAffinity.leading,
+        activeColor: AppTheme.primaryColor,
+        checkColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }

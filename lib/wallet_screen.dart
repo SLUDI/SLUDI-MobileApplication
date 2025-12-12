@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:new_project/api_service.dart';
+import 'package:new_project/app_theme.dart';
 import 'id_card_selection_screen.dart';
 
 class WalletScreen extends StatefulWidget {
@@ -224,137 +225,139 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: Text(
-          'My Digital Cards',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1E293B),
+      backgroundColor: AppTheme.darkBg1,
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppTheme.darkGradient),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'My Wallet',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                        onPressed: _loadWalletData,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Content
+              Expanded(
+                child: isLoading
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
+                              strokeWidth: 3,
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              'Loading your cards...',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.7),
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : errorMessage.isNotEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.error_outline,
+                                    size: 40,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                const Text(
+                                  'Unable to Load Cards',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  errorMessage,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.6),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                ElevatedButton(
+                                  onPressed: _loadWalletData,
+                                  style: AppTheme.primaryButtonStyle,
+                                  child: const Text('Try Again'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : SingleChildScrollView(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                children: [
+                                  // ID Card
+                                  GestureDetector(
+                                    onTap: () {
+                                      _showCardDetails(context, 'Digital ID');
+                                    },
+                                    child: _buildIDCard(),
+                                  ),
+                                  const SizedBox(height: 20),
+
+                                  // Driver's License (if available)
+                                  if (_hasDrivingLicenseCredential)
+                                    GestureDetector(
+                                      onTap: () {
+                                        _showCardDetails(context, 'Driving License');
+                                      },
+                                      child: _buildDriversLicenseCard(),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+              ),
+            ],
           ),
         ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        shadowColor: Colors.black.withOpacity(0.05),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: Color(0xFF64748B)),
-            onPressed: _loadWalletData,
-          ),
-        ],
       ),
-      body: isLoading
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation(Color(0xFF3B82F6)),
-                    strokeWidth: 2,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Loading your cards...',
-                    style: TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : errorMessage.isNotEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Color(0xFFFEF2F2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.error_outline,
-                          size: 40,
-                          color: Color(0xFFDC2626),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Unable to Load Cards',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        errorMessage,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: _loadWalletData,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF3B82F6),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          'Try Again',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        // ID Card - Simple GestureDetector wrapper
-                        GestureDetector(
-                          onTap: () {
-                            print('ID Card tapped'); // Debug print
-                            _showCardDetails(context, 'Digital ID');
-                          },
-                          child: _buildIDCard(),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Driver's License (if available)
-                        if (_hasDrivingLicenseCredential)
-                          GestureDetector(
-                            onTap: () {
-                              print('Driver License tapped'); // Debug print
-                              _showCardDetails(context, 'Driving License');
-                            },
-                            child: _buildDriversLicenseCard(),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
     );
   }
 

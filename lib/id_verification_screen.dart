@@ -1,7 +1,8 @@
 // lib/id_verification_screen.dart
 import 'package:flutter/material.dart';
 import 'api_service.dart';
-import 'otp_verification_screen.dart'; // Keep OTP screen import
+import 'otp_verification_screen.dart';
+import 'app_theme.dart';
 
 class IDVerificationScreen extends StatefulWidget {
   const IDVerificationScreen({super.key});
@@ -32,7 +33,6 @@ class _IDVerificationScreenState extends State<IDVerificationScreen> {
       });
 
       if (result['success'] == true) {
-        // Success - navigate to OTP screen
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -43,12 +43,9 @@ class _IDVerificationScreenState extends State<IDVerificationScreen> {
           ),
         );
       } else {
-        // Show error message
         setState(() {
           _errorMessage = result['error'] ?? 'Verification failed';
         });
-        
-        // Show error dialog
         _showErrorDialog(result['error'] ?? 'Verification failed');
       }
     } catch (e) {
@@ -64,12 +61,20 @@ class _IDVerificationScreenState extends State<IDVerificationScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Verification Failed'),
-        content: Text(message),
+        backgroundColor: AppTheme.darkBg2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Verification Failed', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+        content: Text(message, style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: const Text('OK', style: TextStyle(color: AppTheme.primaryColor)),
           ),
         ],
       ),
@@ -86,138 +91,228 @@ class _IDVerificationScreenState extends State<IDVerificationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFFFFF),  // White
-              Color(0xFFD6E6F2),  // Light blue
-            ],
-            stops: [0.1, 0.9],
-          ),                  
-        ),
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '1-side',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 20),
-            
-            const Text(
-              'ID Confirmation',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 40),
-            
-            // Welcome message
-            const Center(
+        decoration: const BoxDecoration(gradient: AppTheme.darkGradient),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "Please enter your Digital ID Number",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
+                  // Back button
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
                     ),
                   ),
+                  
+                  const SizedBox(height: 40),
+                  
+                  // Step indicator
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'Step 1 of 3',
+                      style: TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Title
+                  const Text(
+                    'ID Verification',
+                    style: AppTheme.headingStyle,
+                  ),
+                  
+                  const SizedBox(height: 12),
+                  
                   Text(
-                    "to confirm your identity",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
+                    'Enter your Digital ID Number to verify your identity and get started.',
+                    style: AppTheme.subtitleStyle,
+                  ),
+                  
+                  const SizedBox(height: 48),
+                  
+                  // ID Card Icon
+                  Center(
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppTheme.primaryColor.withOpacity(0.3),
+                            AppTheme.primaryColor.withOpacity(0.1),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primaryColor.withOpacity(0.3),
+                            blurRadius: 30,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.credit_card_rounded,
+                        size: 60,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 48),
+                  
+                  // Error message
+                  if (_errorMessage != null)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.red.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _errorMessage!,
+                              style: const TextStyle(color: Colors.red, fontSize: 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  
+                  // Input Card
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: AppTheme.glassDecoration(),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Digital ID Number',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _idNumberController,
+                            style: const TextStyle(color: Colors.white, fontSize: 18),
+                            keyboardType: TextInputType.number,
+                            decoration: AppTheme.inputDecoration(
+                              hintText: 'Enter your 12-digit ID',
+                              prefixIcon: Icons.badge_outlined,
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your Digital ID number';
+                              }
+                              if (value.length < 8) {
+                                return 'ID number must be at least 8 digits';
+                              }
+                              return null;
+                            },
+                          ),
+                          
+                          const SizedBox(height: 24),
+                          
+                          // Submit Button
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _verifyID,
+                              style: AppTheme.primaryButtonStyle,
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 22,
+                                      width: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    )
+                                  : const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          'Verify ID',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        SizedBox(width: 8),
+                                        Icon(Icons.arrow_forward_rounded),
+                                      ],
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 32),
+                  
+                  // Info text
+                  Center(
+                    child: Text(
+                      'Your data is encrypted and secure',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.5),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 8),
+                  
+                  Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.lock_outline, size: 14, color: Colors.white.withOpacity(0.4)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Protected by SLUDI Security',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.4),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 40),
-            
-            // Error message
-            if (_errorMessage != null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red[200]!),
-                ),
-                child: Text(
-                  _errorMessage!,
-                  style: TextStyle(
-                    color: Colors.red[800],
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            
-            if (_errorMessage != null) const SizedBox(height: 20),
-            
-            // ID Number Input
-            Form(
-              key: _formKey,
-              child: TextFormField(
-                controller: _idNumberController,
-                decoration: InputDecoration(
-                  labelText: 'Enter Digital ID No',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.credit_card),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your Digital ID number';
-                  }
-                  if (value.length < 8) {
-                    return 'ID number must be at least 8 digits';
-                  }
-                  return null;
-                },
-              ),
-            ),
-            const SizedBox(height: 30),
-            
-            // Submit Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _verifyID,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF13A4B4),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Text(
-                        'Submit',
-                        style: TextStyle(fontSize: 18),
-                      ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

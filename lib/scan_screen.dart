@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:new_project/app_theme.dart';
 import 'presentation_approval_screen.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -31,18 +32,14 @@ class _ScanScreenState extends State<ScanScreen> {
       cameraController.stop();
 
       final uri = Uri.parse(qrData);
-      print('[LoginScreen] Device lock status: $uri');
       final pathSegments = uri.pathSegments;
 
-      // More flexible parsing - look for the pattern anywhere in the path
       final requestIndex = pathSegments.indexOf('request');
       if (requestIndex != -1 && requestIndex < pathSegments.length - 1) {
         final sessionId = pathSegments[requestIndex + 1];
 
-        // Additional validation - ensure this is a driving license request
         final drivingLicenseIndex = pathSegments.indexOf('driving-license');
         if (drivingLicenseIndex != -1 && drivingLicenseIndex < requestIndex) {
-          // Navigate to approval screen
           if (mounted) {
             final result = await Navigator.push(
               context,
@@ -54,7 +51,6 @@ class _ScanScreenState extends State<ScanScreen> {
               ),
             );
 
-            // Resume scanning if user returns without completing
             if (result != true && mounted) {
               setState(() {
                 isProcessing = false;
@@ -96,12 +92,20 @@ class _ScanScreenState extends State<ScanScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(title),
-          content: Text(message),
+          backgroundColor: AppTheme.darkBg2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red),
+              const SizedBox(width: 10),
+              Text(title, style: const TextStyle(color: Colors.white)),
+            ],
+          ),
+          content: Text(message, style: TextStyle(color: Colors.white.withOpacity(0.7))),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
+              child: const Text('OK', style: TextStyle(color: AppTheme.primaryColor)),
             ),
           ],
         );
@@ -119,17 +123,7 @@ class _ScanScreenState extends State<ScanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scan QR Code'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(isFlashOn ? Icons.flash_on : Icons.flash_off),
-            onPressed: _toggleFlash,
-          ),
-        ],
-      ),
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
           // Camera view
@@ -146,85 +140,67 @@ class _ScanScreenState extends State<ScanScreen> {
             },
           ),
 
-          // Scanning frame overlay
-          Center(
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white, width: 2),
-                borderRadius: BorderRadius.circular(12),
+          // Dark overlay with cutout
+          CustomPaint(
+            size: Size.infinite,
+            painter: ScanOverlayPainter(),
+          ),
+
+          // Top bar
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Back button - hidden since this is a tab
+                  const SizedBox(width: 48),
+                  
+                  // Title
+                  const Text(
+                    'Scan QR Code',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  
+                  // Flash toggle
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        isFlashOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
+                        color: isFlashOn ? AppTheme.accentColor : Colors.white,
+                      ),
+                      onPressed: _toggleFlash,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
 
-          // Corner decorations
+          // Scanning frame
           Center(
-            child: SizedBox(
-              width: 300,
-              height: 300,
+            child: Container(
+              width: 280,
+              height: 280,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+                borderRadius: BorderRadius.circular(24),
+              ),
               child: Stack(
                 children: [
-                  // Top-left corner
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        border: Border(
-                          top: BorderSide(color: Colors.green, width: 4),
-                          left: BorderSide(color: Colors.green, width: 4),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Top-right corner
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        border: Border(
-                          top: BorderSide(color: Colors.green, width: 4),
-                          right: BorderSide(color: Colors.green, width: 4),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Bottom-left corner
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(color: Colors.green, width: 4),
-                          left: BorderSide(color: Colors.green, width: 4),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Bottom-right corner
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(color: Colors.green, width: 4),
-                          right: BorderSide(color: Colors.green, width: 4),
-                        ),
-                      ),
-                    ),
-                  ),
+                  // Animated corners
+                  _buildCorner(Alignment.topLeft),
+                  _buildCorner(Alignment.topRight),
+                  _buildCorner(Alignment.bottomLeft),
+                  _buildCorner(Alignment.bottomRight),
                 ],
               ),
             ),
@@ -232,42 +208,120 @@ class _ScanScreenState extends State<ScanScreen> {
 
           // Instructions
           Positioned(
-            bottom: 100,
+            bottom: 120,
             left: 0,
             right: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      isProcessing
-                          ? 'Processing QR code...'
-                          : 'Align the QR code within the frame to scan',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white, fontSize: 16),
-                    ),
+            child: Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.darkBg2.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
                   ),
-                ],
-              ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        isProcessing ? Icons.hourglass_top_rounded : Icons.qr_code_scanner_rounded,
+                        color: AppTheme.primaryColor,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        isProcessing ? 'Processing...' : 'Point camera at QR code',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
 
-          // Loading indicator
+          // Loading overlay
           if (isProcessing)
             Container(
-              color: Colors.black.withOpacity(0.5),
-              child: const Center(
-                child: CircularProgressIndicator(color: Colors.white),
+              color: Colors.black.withOpacity(0.7),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(32),
+                  decoration: AppTheme.glassDecoration(borderRadius: 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(color: AppTheme.primaryColor),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Processing QR Code...',
+                        style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 16),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
         ],
       ),
     );
   }
+
+  Widget _buildCorner(Alignment alignment) {
+    return Align(
+      alignment: alignment,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          border: Border(
+            top: alignment == Alignment.topLeft || alignment == Alignment.topRight
+                ? const BorderSide(color: AppTheme.primaryColor, width: 4)
+                : BorderSide.none,
+            bottom: alignment == Alignment.bottomLeft || alignment == Alignment.bottomRight
+                ? const BorderSide(color: AppTheme.primaryColor, width: 4)
+                : BorderSide.none,
+            left: alignment == Alignment.topLeft || alignment == Alignment.bottomLeft
+                ? const BorderSide(color: AppTheme.primaryColor, width: 4)
+                : BorderSide.none,
+            right: alignment == Alignment.topRight || alignment == Alignment.bottomRight
+                ? const BorderSide(color: AppTheme.primaryColor, width: 4)
+                : BorderSide.none,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Custom painter for the scan overlay
+class ScanOverlayPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.black.withOpacity(0.6)
+      ..style = PaintingStyle.fill;
+
+    const scanAreaSize = 280.0;
+    final scanAreaLeft = (size.width - scanAreaSize) / 2;
+    final scanAreaTop = (size.height - scanAreaSize) / 2;
+
+    // Draw dark overlay with rounded cutout
+    final path = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..addRRect(RRect.fromRectAndRadius(
+        Rect.fromLTWH(scanAreaLeft, scanAreaTop, scanAreaSize, scanAreaSize),
+        const Radius.circular(24),
+      ));
+    path.fillType = PathFillType.evenOdd;
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

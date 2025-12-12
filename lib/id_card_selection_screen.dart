@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'app_theme.dart';
 
 class IDCardSelectionScreen extends StatefulWidget {
   final String selectedCardType;
@@ -393,34 +394,58 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
     final uniqueFields = fieldSources.keys.toList()..sort();
 
     return Scaffold(
-      appBar: AppBar(
-        title: _showQRCode 
-            ? Text('Share ${_getCardTypeDescription()} via QR Code')
-            : Text('Select ${_getCardTypeDescription()} Information to Share'),
-        centerTitle: true,
-        leading: _showQRCode
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: _closeQRCode,
-              )
-            : null,
-      ),
+      backgroundColor: AppTheme.darkBg1,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFFFFF), // White
-              Color(0xFFD6E6F2), // Light blue
+        decoration: const BoxDecoration(gradient: AppTheme.darkGradient),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: _showQRCode ? _closeQRCode : () => Navigator.pop(context),
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        _showQRCode 
+                            ? 'Share via QR'
+                            : 'Select Info to Share',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 48),
+                  ],
+                ),
+              ),
+              
+              // Content
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: _horizontalPadding),
+                  child: _isLoading 
+                      ? _buildLoadingView()
+                      : (_showQRCode ? _buildQRCodeView() : _buildSelectionView(uniqueFields)),
+                ),
+              ),
             ],
-            stops: [0.1, 0.9],
           ),
         ),
-        padding: EdgeInsets.symmetric(horizontal: _horizontalPadding, vertical: 16.0),
-        child: _isLoading 
-            ? _buildLoadingView()
-            : (_showQRCode ? _buildQRCodeView() : _buildSelectionView(uniqueFields)),
       ),
     );
   }
@@ -431,14 +456,14 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF13A4B4)),
+            valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
           ),
           SizedBox(height: 16),
           Text(
             'Loading your preferences...',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.grey,
+              color: Colors.white70,
             ),
           ),
         ],
@@ -454,17 +479,7 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
           width: double.infinity,
           padding: EdgeInsets.all(_isSmallScreen ? 16.0 : 20.0),
           margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
+          decoration: AppTheme.glassDecoration(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -474,17 +489,17 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
                     _isDigitalIDCard(widget.selectedCardType) 
                         ? Icons.perm_identity
                         : Icons.drive_eta,
-                    color: const Color(0xFF13A4B4),
+                    color: AppTheme.primaryColor,
                     size: _fontSizeTitle,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '${_getCardTypeDescription()}: ${widget.selectedCardType}',
+                      _getCardTypeDescription(),
                       style: TextStyle(
                         fontSize: _fontSizeTitle,
                         fontWeight: FontWeight.bold,
-                        color: const Color(0xFF13A4B4),
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -493,34 +508,35 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
               const SizedBox(height: 8),
               Text(
                 _isDigitalIDCard(widget.selectedCardType)
-                    ? 'Select the Digital ID information you want to share. Only Digital ID related fields are shown.'
-                    : 'Select the Digital License information you want to share. Only Digital License related fields are shown.',
+                    ? 'Select the Digital ID information you want to share.'
+                    : 'Select the Digital License information you want to share.',
                 style: TextStyle(
                   fontSize: _fontSizeBody,
-                  color: Colors.grey,
+                  color: Colors.white70,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF13A4B4).withOpacity(0.1),
+                  color: AppTheme.primaryColor.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
                 ),
                 child: Row(
                   children: [
                     Icon(
                       Icons.info_outline,
                       size: _fontSizeSmall,
-                      color: const Color(0xFF13A4B4),
+                      color: AppTheme.primaryColor,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Showing only ${_getCardTypeDescription().toLowerCase()} related fields',
+                        'Showing only ${_getCardTypeDescription().toLowerCase()} fields',
                         style: TextStyle(
                           fontSize: _fontSizeSmall,
-                          color: const Color(0xFF13A4B4),
+                          color: AppTheme.primaryColor,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -537,6 +553,7 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
               ? _buildGridView(uniqueFields)
               : _buildListView(uniqueFields),
         ),
+        const SizedBox(height: 16),
         _buildActionButtons(context),
       ],
     );
