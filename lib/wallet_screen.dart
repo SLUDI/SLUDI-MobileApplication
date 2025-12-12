@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:new_project/api_service.dart';
 import 'package:new_project/app_theme.dart';
+import 'package:new_project/theme_provider.dart';
 import 'id_card_selection_screen.dart';
 
 class WalletScreen extends StatefulWidget {
@@ -224,140 +226,147 @@ class _WalletScreenState extends State<WalletScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.darkBg1,
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.darkGradient),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'My Wallet',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-                        onPressed: _loadWalletData,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Content
-              Expanded(
-                child: isLoading
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
-                              strokeWidth: 3,
-                            ),
-                            const SizedBox(height: 20),
-                            Text(
-                              'Loading your cards...',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final isDarkMode = themeProvider.isDarkMode;
+        final textColor = AppTheme.getTextPrimary(isDarkMode);
+        
+        return Scaffold(
+          backgroundColor: AppTheme.getBackgroundColor(isDarkMode),
+          body: Container(
+            decoration: BoxDecoration(gradient: AppTheme.getGradient(isDarkMode)),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'My Wallet',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
                         ),
-                      )
-                    : errorMessage.isNotEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.all(32),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            icon: Icon(Icons.refresh_rounded, color: textColor),
+                            onPressed: _loadWalletData,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Content
+                  Expanded(
+                    child: isLoading
+                        ? Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Container(
-                                  width: 80,
-                                  height: 80,
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.withOpacity(0.2),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.error_outline,
-                                    size: 40,
-                                    color: Colors.red,
-                                  ),
+                                const CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
+                                  strokeWidth: 3,
                                 ),
-                                const SizedBox(height: 24),
-                                const Text(
-                                  'Unable to Load Cards',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 20),
                                 Text(
-                                  errorMessage,
-                                  textAlign: TextAlign.center,
+                                  'Loading your cards...',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.6),
-                                    fontSize: 14,
+                                    color: textColor.withOpacity(0.7),
+                                    fontSize: 15,
                                   ),
-                                ),
-                                const SizedBox(height: 24),
-                                ElevatedButton(
-                                  onPressed: _loadWalletData,
-                                  style: AppTheme.primaryButtonStyle,
-                                  child: const Text('Try Again'),
                                 ),
                               ],
                             ),
                           )
-                        : SingleChildScrollView(
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                children: [
-                                  // ID Card
-                                  GestureDetector(
-                                    onTap: () {
-                                      _showCardDetails(context, 'Digital ID');
-                                    },
-                                    child: _buildIDCard(),
-                                  ),
-                                  const SizedBox(height: 20),
-
-                                  // Driver's License (if available)
-                                  if (_hasDrivingLicenseCredential)
-                                    GestureDetector(
-                                      onTap: () {
-                                        _showCardDetails(context, 'Driving License');
-                                      },
-                                      child: _buildDriversLicenseCard(),
+                        : errorMessage.isNotEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.all(32),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.withOpacity(0.2),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.error_outline,
+                                        size: 40,
+                                        color: Colors.red,
+                                      ),
                                     ),
-                                ],
+                                    const SizedBox(height: 24),
+                                    Text(
+                                      'Unable to Load Cards',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w600,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      errorMessage,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: textColor.withOpacity(0.6),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                    ElevatedButton(
+                                      onPressed: _loadWalletData,
+                                      style: AppTheme.primaryButtonStyle,
+                                      child: const Text('Try Again'),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : SingleChildScrollView(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Column(
+                                    children: [
+                                      // ID Card
+                                      GestureDetector(
+                                        onTap: () {
+                                          _showCardDetails(context, 'Digital ID');
+                                        },
+                                        child: _buildIDCard(),
+                                      ),
+                                      const SizedBox(height: 20),
+
+                                      // Driver's License (if available)
+                                      if (_hasDrivingLicenseCredential)
+                                        GestureDetector(
+                                          onTap: () {
+                                            _showCardDetails(context, 'Driving License');
+                                          },
+                                          child: _buildDriversLicenseCard(),
+                                        ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

@@ -10,6 +10,8 @@ import 'package:new_project/app_theme.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:video_compress/video_compress.dart';
+import 'package:provider/provider.dart';
+import 'theme_provider.dart';
 import 'api_service.dart';
 
 class FaceDetectionScreen extends StatefulWidget {
@@ -792,151 +794,159 @@ class _FaceDetectionScreenImprovedState extends State<FaceDetectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.darkBg1,
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.darkGradient),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                // Header
-                Row(
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final isDarkMode = themeProvider.isDarkMode;
+        final textColor = AppTheme.getTextPrimary(isDarkMode);
+        final secondaryTextColor = AppTheme.getTextSecondary(isDarkMode);
+        
+        return Scaffold(
+          backgroundColor: AppTheme.getBackgroundColor(isDarkMode),
+          body: Container(
+            decoration: BoxDecoration(gradient: AppTheme.getGradient(isDarkMode)),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
+                    // Header
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(Icons.arrow_back_ios_new, color: textColor, size: 20),
+                          ),
                         ),
-                        child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-                      ),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(
+                                "Face Verification",
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "ID: ${widget.idNumber}",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: secondaryTextColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 48),
+                      ],
                     ),
+                    const SizedBox(height: 16),
+                    if (_errorMessage != null)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: TextStyle(color: Colors.red.shade300, fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     Expanded(
                       child: Column(
                         children: [
-                          const Text(
-                            "Face Verification",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12.0),
+                            child: Text(
+                              _isLoading || _isVerifying
+                                  ? _faceStatus
+                                  : _verificationSuccess || _similarityScore > 0
+                                      ? 'Verification Result'
+                                      : _isRecording
+                                          ? 'Recording... ($_recordingDuration/$_maxRecordingDuration)'
+                                          : _faceStatus,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: textColor.withOpacity(0.8),
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "ID: ${widget.idNumber}",
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.white.withOpacity(0.6),
-                            ),
+                          Expanded(
+                            child: _isLoading || _isVerifying
+                                ? _buildLoadingScreen()
+                                : (_verificationSuccess || _similarityScore > 0)
+                                    ? _buildResultScreen()
+                                    : _buildCameraPreview(),
                           ),
+                          if (_isRecording) ...[
+                            const SizedBox(height: 12),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: LinearProgressIndicator(
+                                value: _recordingDuration / _maxRecordingDuration,
+                                backgroundColor: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1),
+                                valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
+                                minHeight: 6,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
-                    const SizedBox(width: 48),
+                    const SizedBox(height: 16),
+                    if (!_isLoading &&
+                        !_isVerifying &&
+                        !_verificationSuccess &&
+                        _similarityScore == 0 &&
+                        !_isRecording)
+                      ElevatedButton(
+                        onPressed: () {
+                          _startSimpleFaceDetection();
+                          _startRecording();
+                        },
+                        style: AppTheme.primaryButtonStyle,
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.videocam_rounded, size: 22),
+                            SizedBox(width: 10),
+                            Text(
+                              'Start 5-Second Verification',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 12),
                   ],
                 ),
-                const SizedBox(height: 16),
-                if (_errorMessage != null)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error_outline, color: Colors.red, size: 18),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(color: Colors.red.shade300, fontSize: 13),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
-                        child: Text(
-                          _isLoading || _isVerifying
-                              ? _faceStatus
-                              : _verificationSuccess || _similarityScore > 0
-                                  ? 'Verification Result'
-                                  : _isRecording
-                                      ? 'Recording... ($_recordingDuration/$_maxRecordingDuration)'
-                                      : _faceStatus,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white.withOpacity(0.8),
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      Expanded(
-                        child: _isLoading || _isVerifying
-                            ? _buildLoadingScreen()
-                            : (_verificationSuccess || _similarityScore > 0)
-                                ? _buildResultScreen()
-                                : _buildCameraPreview(),
-                      ),
-                      if (_isRecording) ...[
-                        const SizedBox(height: 12),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: LinearProgressIndicator(
-                            value: _recordingDuration / _maxRecordingDuration,
-                            backgroundColor: Colors.white.withOpacity(0.1),
-                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
-                            minHeight: 6,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (!_isLoading &&
-                    !_isVerifying &&
-                    !_verificationSuccess &&
-                    _similarityScore == 0 &&
-                    !_isRecording)
-                  ElevatedButton(
-                    onPressed: () {
-                      _startSimpleFaceDetection();
-                      _startRecording();
-                    },
-                    style: AppTheme.primaryButtonStyle,
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.videocam_rounded, size: 22),
-                        SizedBox(width: 10),
-                        Text(
-                          'Start 5-Second Verification',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-                const SizedBox(height: 12),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -988,7 +998,7 @@ class CircleOverlayPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     
     canvas.drawCircle(center, circleRadius * 0.8, guidePaint);
-  }face_detection_screen
+  }
 
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => true;

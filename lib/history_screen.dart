@@ -1,7 +1,9 @@
 // lib/screens/history_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:new_project/api_service.dart';
-import 'api_service.dart';
+import 'package:new_project/app_theme.dart';
+import 'package:new_project/theme_provider.dart';
 import '../models/presentation_history.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -23,23 +25,35 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _loadHistory() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
 
-    final response = await ApiService.getPresentationHistory();
+    try {
+      final response = await ApiService.getPresentationHistory();
 
-    if (response.success && response.data != null) {
-      setState(() {
-        _transactions = response.data!;
-        _isLoading = false;
-      });
-    } else {
-      setState(() {
-        _errorMessage = response.message;
-        _isLoading = false;
-      });
+      if (mounted) {
+        if (response.success && response.data != null) {
+          setState(() {
+            _transactions = response.data!;
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _errorMessage = response.message;
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load history: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -47,18 +61,86 @@ class _HistoryScreenState extends State<HistoryScreen> {
     await _loadHistory();
   }
 
-  Widget _buildLoadingState() {
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final isDarkMode = themeProvider.isDarkMode;
+        final textColor = AppTheme.getTextPrimary(isDarkMode);
+        final secondaryTextColor = AppTheme.getTextSecondary(isDarkMode);
+
+        return Scaffold(
+          backgroundColor: AppTheme.getBackgroundColor(isDarkMode),
+          body: Container(
+            decoration: BoxDecoration(gradient: AppTheme.getGradient(isDarkMode)),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Transaction History',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            icon: Icon(Icons.refresh_rounded, color: textColor),
+                            onPressed: _refreshHistory,
+                            tooltip: 'Refresh',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Content
+                  Expanded(
+                    child: _isLoading
+                        ? _buildLoadingState(textColor, secondaryTextColor)
+                        : _errorMessage.isNotEmpty
+                            ? _buildErrorState(textColor, secondaryTextColor)
+                            : _transactions.isEmpty
+                                ? _buildEmptyState(textColor, secondaryTextColor)
+                                : RefreshIndicator(
+                                    onRefresh: _refreshHistory,
+                                    child: _buildHistoryList(isDarkMode, textColor, secondaryTextColor),
+                                  ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoadingState(Color textColor, Color secondaryTextColor) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 20),
+          const CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
+          ),
+          const SizedBox(height: 20),
           Text(
             'Loading transaction history...',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.grey[600],
+              color: secondaryTextColor,
             ),
           ),
         ],
@@ -66,49 +148,57 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildErrorState() {
+  Widget _buildErrorState(Color textColor, Color secondaryTextColor) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.error_outline,
-            size: 64,
-            color: Colors.red,
-          ),
-          SizedBox(height: 20),
-          Text(
-            'Failed to load history',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.red,
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline,
+                size: 40,
+                color: Colors.red,
+              ),
             ),
-          ),
-          SizedBox(height: 10),
-          Text(
-            _errorMessage,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
+            const SizedBox(height: 20),
+            Text(
+              'Failed to load history',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
             ),
-          ),
-          SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _loadHistory,
-            child: Text('Retry'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
+            const SizedBox(height: 10),
+            Text(
+              _errorMessage,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: secondaryTextColor,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _loadHistory,
+              style: AppTheme.primaryButtonStyle,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(Color textColor, Color secondaryTextColor) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -116,23 +206,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Icon(
             Icons.history_toggle_off,
             size: 64,
-            color: Colors.grey[400],
+            color: secondaryTextColor.withOpacity(0.5),
           ),
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
           Text(
             'No transactions yet',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
+              color: textColor,
             ),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Text(
             'Your shared data history will appear here',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[500],
+              color: secondaryTextColor,
             ),
           ),
         ],
@@ -140,67 +230,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Transaction History',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _refreshHistory,
-            tooltip: 'Refresh',
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refreshHistory,
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFFFFFFFF), // White
-                Color(0xFFD6E6F2), // Light blue
-              ],
-              stops: [0.1, 0.9],
-            ),
-          ),
-          child: _isLoading
-              ? _buildLoadingState()
-              : _errorMessage.isNotEmpty
-                  ? _buildErrorState()
-                  : _transactions.isEmpty
-                      ? _buildEmptyState()
-                      : _buildHistoryList(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHistoryList() {
+  Widget _buildHistoryList(bool isDarkMode, Color textColor, Color secondaryTextColor) {
     return ListView.separated(
       padding: const EdgeInsets.all(16.0),
       itemCount: _transactions.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 16),
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        return _buildTransactionCard(_transactions[index]);
+        return _buildTransactionCard(_transactions[index], isDarkMode, textColor, secondaryTextColor);
       },
     );
   }
 
-  Widget _buildTransactionCard(PresentationHistory transaction) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+  Widget _buildTransactionCard(PresentationHistory transaction, bool isDarkMode, Color textColor, Color secondaryTextColor) {
+    return Container(
+      decoration: AppTheme.getCardDecoration(isDarkMode),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -212,15 +255,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 Expanded(
                   child: Text(
                     transaction.requesterName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: textColor,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
                     color: transaction.statusColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -240,41 +284,57 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               ],
             ),
-            const Divider(thickness: 1),
+            Divider(thickness: 1, color: secondaryTextColor.withOpacity(0.2)),
             _TransactionRow(
               label: 'Session ID :',
               value: transaction.sessionId,
+              textColor: textColor,
+              secondaryTextColor: secondaryTextColor,
             ),
             _TransactionRow(
               label: 'Requester ID :',
               value: transaction.requesterId,
+              textColor: textColor,
+              secondaryTextColor: secondaryTextColor,
             ),
             _TransactionRow(
               label: 'Date :',
               value: transaction.formattedDate,
+              textColor: textColor,
+              secondaryTextColor: secondaryTextColor,
             ),
             _TransactionRow(
               label: 'Time :',
               value: transaction.formattedTime,
+              textColor: textColor,
+              secondaryTextColor: secondaryTextColor,
             ),
             _TransactionRow(
               label: 'Purpose :',
               value: transaction.purpose,
+              textColor: textColor,
+              secondaryTextColor: secondaryTextColor,
             ),
             if (transaction.requestedAttributes.isNotEmpty)
               _TransactionRow(
                 label: 'Requested :',
                 value: transaction.requestedAttributes.join(', '),
+                textColor: textColor,
+                secondaryTextColor: secondaryTextColor,
               ),
             if (transaction.sharedAttributes.isNotEmpty)
               _TransactionRow(
                 label: 'Shared Data :',
                 value: transaction.sharedDataSummary,
+                textColor: textColor,
+                secondaryTextColor: secondaryTextColor,
               ),
             if (transaction.fulfilledAt != null)
               _TransactionRow(
                 label: 'Shared On :',
                 value: '${transaction.fulfilledAt!.day}/${transaction.fulfilledAt!.month}/${transaction.fulfilledAt!.year} ${transaction.fulfilledAt!.hour.toString().padLeft(2, '0')}:${transaction.fulfilledAt!.minute.toString().padLeft(2, '0')}',
+                textColor: textColor,
+                secondaryTextColor: secondaryTextColor,
               ),
           ],
         ),
@@ -286,10 +346,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
 class _TransactionRow extends StatelessWidget {
   final String label;
   final String value;
+  final Color textColor;
+  final Color secondaryTextColor;
 
   const _TransactionRow({
     required this.label,
     required this.value,
+    required this.textColor,
+    required this.secondaryTextColor,
   });
 
   @override
@@ -303,8 +367,10 @@ class _TransactionRow extends StatelessWidget {
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
+                color: textColor.withOpacity(0.9),
+                fontSize: 13,
               ),
             ),
           ),
@@ -312,7 +378,8 @@ class _TransactionRow extends StatelessWidget {
             child: Text(
               value,
               style: TextStyle(
-                color: Colors.grey[700],
+                color: secondaryTextColor,
+                fontSize: 13,
               ),
             ),
           ),

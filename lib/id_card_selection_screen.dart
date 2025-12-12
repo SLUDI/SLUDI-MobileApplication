@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import 'app_theme.dart';
+import 'theme_provider.dart';
 
 class IDCardSelectionScreen extends StatefulWidget {
   final String selectedCardType;
@@ -37,13 +39,10 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
   }
 
   Future<void> _initializeData() async {
-    // Load previously selected fields first
     await _loadSelectedFields();
     
-    // Filter data based on card type - only include relevant fields
     final filteredCardData = _filterDataByCardType();
     
-    // Build a map of unique fields and which cards they appear in (only from filtered data)
     for (var cardEntry in filteredCardData.entries) {
       for (var fieldEntry in cardEntry.value.entries) {
         if (!fieldSources.containsKey(fieldEntry.key)) {
@@ -51,8 +50,6 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
         }
         fieldSources[fieldEntry.key]!.add(cardEntry.key);
         
-        // Initialize selection - preserve previous selection if exists,
-        // otherwise default to true if field exists in selected card
         if (!selectedFields.containsKey(fieldEntry.key)) {
           selectedFields[fieldEntry.key] = 
               filteredCardData[widget.selectedCardType]?.containsKey(fieldEntry.key) ?? false;
@@ -60,38 +57,35 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
       }
     }
     
-    setState(() {
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
-  // Filter data to only include relevant cards based on selected card type
   Map<String, Map<String, String>> _filterDataByCardType() {
     final filteredData = <String, Map<String, String>>{};
     
     if (_isDigitalIDCard(widget.selectedCardType)) {
-      // Only include Digital ID related cards
       for (var cardEntry in widget.allCardData.entries) {
         if (_isDigitalIDCard(cardEntry.key)) {
           filteredData[cardEntry.key] = cardEntry.value;
         }
       }
     } else if (_isDigitalLicenseCard(widget.selectedCardType)) {
-      // Only include Digital License related cards
       for (var cardEntry in widget.allCardData.entries) {
         if (_isDigitalLicenseCard(cardEntry.key)) {
           filteredData[cardEntry.key] = cardEntry.value;
         }
       }
     } else {
-      // For other card types, include all data (fallback)
       return widget.allCardData;
     }
     
     return filteredData;
   }
 
-  // Helper methods to identify card types
   bool _isDigitalIDCard(String cardType) {
     return cardType.toLowerCase().contains('digital id') ||
            cardType.toLowerCase().contains('id card') ||
@@ -106,7 +100,6 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
            cardType.toLowerCase().contains('license');
   }
 
-  // Load previously selected fields from shared preferences
   Future<void> _loadSelectedFields() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -119,11 +112,10 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
         }
       }
     } catch (e) {
-      print('Error loading saved selections: $e');
+      debugPrint('Error loading saved selections: $e');
     }
   }
 
-  // Save selected fields to shared preferences
   Future<void> _saveSelectedFields() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -132,18 +124,15 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
         json.encode(selectedFields),
       );
     } catch (e) {
-      print('Error saving selections: $e');
+      debugPrint('Error saving selections: $e');
     }
   }
 
   void _generateQRCode() async {
     final selectedData = <String, String>{};
-    
-    // Get filtered data for the current card type
     final filteredCardData = _filterDataByCardType();
     final selectedCardData = filteredCardData[widget.selectedCardType];
     
-    // Check if selectedCardData is null
     if (selectedCardData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No data available for selected card')),
@@ -153,8 +142,6 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
     
     for (var field in selectedFields.entries) {
       if (field.value) {
-        // Use value from the originally selected card if available,
-        // otherwise use the first available value from filtered data
         String? fieldValue;
         
         if (selectedCardData.containsKey(field.key)) {
@@ -169,14 +156,12 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
           }
         }
         
-        // Only add if we have a valid value
         if (fieldValue != null) {
           selectedData[field.key] = fieldValue;
         }
       }
     }
 
-    // Check if we have any data to share
     if (selectedData.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No valid data selected to share')),
@@ -184,26 +169,18 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
       return;
     }
 
-    // Save the current selections before generating QR code
     await _saveSelectedFields();
 
-    // Generate unique ID for this QR session
     _qrId = DateTime.now().millisecondsSinceEpoch.toString();
     _qrExpiry = DateTime.now().add(const Duration(minutes: 2));
     
-    // Store the data locally with expiry
     await _storeQRData(_qrId!, selectedData, _qrExpiry!);
     
-    // Create QR content with ONLY the selected field data (no metadata, no headers)
-    final qrContent = _formatDataForQR(selectedData);
-
-    _qrData = selectedData;
-    
     setState(() {
+      _qrData = selectedData;
       _showQRCode = true;
     });
 
-    // Auto-hide QR code after 2 minutes
     Future.delayed(const Duration(minutes: 2), () {
       if (mounted && _showQRCode && _qrId != null) {
         _invalidateQRCode(_qrId!);
@@ -220,19 +197,14 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
     });
   }
 
-  // Format data for QR code - ONLY the selected field data, nothing else
   String _formatDataForQR(Map<String, String> data) {
     final lines = <String>[];
-    
-    // Add ONLY the selected fields and their values
     for (var entry in data.entries) {
       lines.add('${entry.key}: ${entry.value}');
     }
-    
     return lines.join('\n');
   }
 
-  // Store QR data locally with expiry
   Future<void> _storeQRData(String id, Map<String, String> data, DateTime expiry) async {
     final prefs = await SharedPreferences.getInstance();
     final qrData = {
@@ -242,18 +214,14 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
       'card_type': widget.selectedCardType,
     };
     await prefs.setString('qr_$id', json.encode(qrData));
-    
-    // Clean up old QR codes
     _cleanupOldQRCodes();
   }
 
-  // Invalidate QR code after use or expiry
   Future<void> _invalidateQRCode(String id) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('qr_$id');
   }
 
-  // Clean up expired QR codes
   Future<void> _cleanupOldQRCodes() async {
     final prefs = await SharedPreferences.getInstance();
     final keys = prefs.getKeys().where((key) => key.startsWith('qr_'));
@@ -268,35 +236,9 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
             await prefs.remove(key);
           }
         } catch (e) {
-          // Remove invalid entries
           await prefs.remove(key);
         }
       }
-    }
-  }
-
-  // Method to retrieve and verify QR data (for the receiving side)
-  static Future<Map<String, dynamic>?> verifyQRCode(String qrContent) async {
-    try {
-      // Parse the clean text format
-      final lines = qrContent.split('\n');
-      final data = <String, String>{};
-      
-      for (final line in lines) {
-        if (line.contains(': ')) {
-          final parts = line.split(': ');
-          if (parts.length >= 2) {
-            data[parts[0]] = parts.sublist(1).join(': ');
-          }
-        }
-      }
-
-      return {
-        'data': data,
-        'verified': true,
-      };
-    } catch (e) {
-      return {'error': 'Invalid QR code format'};
     }
   }
 
@@ -314,19 +256,14 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
 
   String _getRemainingTime() {
     if (_qrExpiry == null) return 'Expired';
-    
     final now = DateTime.now();
     final difference = _qrExpiry!.difference(now);
-    
     if (difference.inSeconds <= 0) return 'Expired';
-    
     final minutes = difference.inMinutes;
     final seconds = difference.inSeconds % 60;
-    
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
-  // Get card type description for UI
   String _getCardTypeDescription() {
     if (_isDigitalIDCard(widget.selectedCardType)) {
       return 'Digital ID';
@@ -337,7 +274,6 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
     }
   }
 
-  // Get available sources description
   String _getSourcesDescription(List<String> sources) {
     final filteredSources = sources.where((source) {
       if (_isDigitalIDCard(widget.selectedCardType)) {
@@ -351,7 +287,6 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
     return filteredSources.join(", ");
   }
 
-  // Responsive helper methods
   bool get _isSmallScreen => MediaQuery.of(context).size.width < 600;
   bool get _isMediumScreen => 
       MediaQuery.of(context).size.width >= 600 && 
@@ -370,100 +305,93 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
     return 300.0;
   }
 
-  double get _fontSizeTitle {
-    if (_isSmallScreen) return 18.0;
-    if (_isMediumScreen) return 20.0;
-    return 22.0;
-  }
-
-  double get _fontSizeBody {
-    if (_isSmallScreen) return 14.0;
-    if (_isMediumScreen) return 16.0;
-    return 17.0;
-  }
-
-  double get _fontSizeSmall {
-    if (_isSmallScreen) return 12.0;
-    if (_isMediumScreen) return 13.0;
-    return 14.0;
-  }
+  double get _fontSizeTitle => _isSmallScreen ? 18.0 : (_isMediumScreen ? 20.0 : 22.0);
+  double get _fontSizeBody => _isSmallScreen ? 14.0 : (_isMediumScreen ? 16.0 : 17.0);
+  double get _fontSizeSmall => _isSmallScreen ? 12.0 : (_isMediumScreen ? 13.0 : 14.0);
 
   @override
   Widget build(BuildContext context) {
-    // Get unique field names sorted alphabetically (only from filtered data)
-    final uniqueFields = fieldSources.keys.toList()..sort();
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final isDarkMode = themeProvider.isDarkMode;
+        final textColor = AppTheme.getTextPrimary(isDarkMode);
+        
+        // Get unique field names
+        final uniqueFields = fieldSources.keys.toList()..sort();
 
-    return Scaffold(
-      backgroundColor: AppTheme.darkBg1,
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.darkGradient),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: _showQRCode ? _closeQRCode : () => Navigator.pop(context),
-                      icon: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
+        return Scaffold(
+          backgroundColor: AppTheme.getBackgroundColor(isDarkMode),
+          body: Container(
+            decoration: BoxDecoration(gradient: AppTheme.getGradient(isDarkMode)),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: _showQRCode ? _closeQRCode : () => Navigator.pop(context),
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(Icons.arrow_back_ios_new, color: textColor, size: 20),
+                          ),
                         ),
-                        child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        _showQRCode 
-                            ? 'Share via QR'
-                            : 'Select Info to Share',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                        Expanded(
+                          child: Text(
+                            _showQRCode 
+                                ? 'Share via QR'
+                                : 'Select Info to Share',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 48),
+                      ],
                     ),
-                    const SizedBox(width: 48),
-                  ],
-                ),
+                  ),
+                  
+                  // Content
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: _horizontalPadding),
+                      child: _isLoading 
+                          ? _buildLoadingView(textColor)
+                          : (_showQRCode ? _buildQRCodeView(isDarkMode, textColor) : _buildSelectionView(uniqueFields, isDarkMode, textColor)),
+                    ),
+                  ),
+                ],
               ),
-              
-              // Content
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: _horizontalPadding),
-                  child: _isLoading 
-                      ? _buildLoadingView()
-                      : (_showQRCode ? _buildQRCodeView() : _buildSelectionView(uniqueFields)),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildLoadingView() {
-    return const Center(
+  Widget _buildLoadingView(Color textColor) {
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
+          const CircularProgressIndicator(
             valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Text(
             'Loading your preferences...',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.white70,
+              color: textColor.withOpacity(0.7),
             ),
           ),
         ],
@@ -471,7 +399,9 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
     );
   }
 
-  Widget _buildSelectionView(List<String> uniqueFields) {
+  Widget _buildSelectionView(List<String> uniqueFields, bool isDarkMode, Color textColor) {
+    final secondaryTextColor = AppTheme.getTextSecondary(isDarkMode);
+
     return Column(
       children: [
         // Information header
@@ -479,7 +409,7 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
           width: double.infinity,
           padding: EdgeInsets.all(_isSmallScreen ? 16.0 : 20.0),
           margin: const EdgeInsets.only(bottom: 16),
-          decoration: AppTheme.glassDecoration(),
+          decoration: AppTheme.getCardDecoration(isDarkMode),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -499,7 +429,7 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
                       style: TextStyle(
                         fontSize: _fontSizeTitle,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: textColor,
                       ),
                     ),
                   ),
@@ -512,14 +442,14 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
                     : 'Select the Digital License information you want to share.',
                 style: TextStyle(
                   fontSize: _fontSizeBody,
-                  color: Colors.white70,
+                  color: secondaryTextColor,
                 ),
               ),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.2),
+                  color: AppTheme.primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
                 ),
@@ -550,16 +480,16 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
         
         Expanded(
           child: _isLargeScreen 
-              ? _buildGridView(uniqueFields)
-              : _buildListView(uniqueFields),
+              ? _buildGridView(uniqueFields, isDarkMode, textColor, secondaryTextColor)
+              : _buildListView(uniqueFields, isDarkMode, textColor, secondaryTextColor),
         ),
         const SizedBox(height: 16),
-        _buildActionButtons(context),
+        _buildActionButtons(context, isDarkMode, textColor),
       ],
     );
   }
 
-  Widget _buildListView(List<String> uniqueFields) {
+  Widget _buildListView(List<String> uniqueFields, bool isDarkMode, Color textColor, Color secondaryTextColor) {
     return ListView(
       children: [
         for (var field in uniqueFields)
@@ -567,12 +497,15 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
             field,
             _getFieldValue(field),
             fieldSources[field]!,
+            isDarkMode,
+            textColor,
+            secondaryTextColor,
           ),
       ],
     );
   }
 
-  Widget _buildGridView(List<String> uniqueFields) {
+  Widget _buildGridView(List<String> uniqueFields, bool isDarkMode, Color textColor, Color secondaryTextColor) {
     return GridView.builder(
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -587,12 +520,14 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
           field,
           _getFieldValue(field),
           fieldSources[field]!,
+          isDarkMode,
+          textColor,
+          secondaryTextColor,
         );
       },
     );
   }
 
-  // Helper method to get field value safely from filtered data
   String _getFieldValue(String fieldName) {
     final filteredCardData = _filterDataByCardType();
     final selectedCardData = filteredCardData[widget.selectedCardType];
@@ -612,12 +547,138 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
     return 'N/A';
   }
 
-  Widget _buildQRCodeView() {
-    final selectedFieldsCount = _qrData?.length ?? 0;
+  Widget _buildFieldItem(String fieldName, String fieldValue, List<String> sourceCards, bool isDarkMode, Color textColor, Color secondaryTextColor) {
+    return Container(
+      margin: EdgeInsets.symmetric(
+        vertical: _isSmallScreen ? 4.0 : 6.0,
+      ),
+      decoration: AppTheme.getCardDecoration(isDarkMode),
+      child: CheckboxListTile(
+        title: Text(
+          fieldName,
+          style: TextStyle(
+            fontSize: _fontSizeBody,
+            fontWeight: FontWeight.w500,
+            color: textColor,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              fieldValue,
+              style: TextStyle(fontSize: _fontSizeSmall, color: secondaryTextColor),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Available in: ${_getSourcesDescription(sourceCards)}',
+              style: TextStyle(
+                fontSize: _fontSizeSmall - 2,
+                color: secondaryTextColor.withOpacity(0.7),
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+        value: selectedFields[fieldName] ?? false,
+        onChanged: (bool? value) {
+          setState(() {
+            selectedFields[fieldName] = value ?? false;
+          });
+          _saveSelectedFields();
+        },
+        controlAffinity: ListTileControlAffinity.leading,
+        activeColor: AppTheme.primaryColor,
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: _isSmallScreen ? 16.0 : 20.0,
+          vertical: _isSmallScreen ? 8.0 : 12.0,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context, bool isDarkMode, Color textColor) {
+    final selectedCount = selectedFields.values.where((value) => value).length;
     
-    // Create QR content with ONLY the selected field data
+    return Column(
+      children: [
+        if (selectedCount > 0)
+          Container(
+            padding: EdgeInsets.all(_isSmallScreen ? 12.0 : 16.0),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green.withOpacity(0.3)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, 
+                    size: _isSmallScreen ? 16 : 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '$selectedCount ${_getCardTypeDescription().toLowerCase()} field${selectedCount > 1 ? 's' : ''} selected for sharing',
+                    style: TextStyle(
+                      fontSize: _fontSizeBody,
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: AppTheme.getOutlineButtonStyle(isDarkMode),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(fontSize: _fontSizeBody, color: textColor),
+                ),
+              ),
+            ),
+            SizedBox(width: _isSmallScreen ? 16 : 20),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: selectedCount > 0 ? _generateQRCode : null,
+                style: AppTheme.primaryButtonStyle.copyWith(
+                  backgroundColor: WidgetStateProperty.resolveWith((states) {
+                     if (states.contains(WidgetState.disabled)) {
+                       return isDarkMode ? Colors.grey[800] : Colors.grey[300];
+                     }
+                     return AppTheme.primaryColor;
+                  }),
+                ),
+                child: Text(
+                  'Generate QR Code',
+                  style: TextStyle(fontSize: _fontSizeBody, color: Colors.black),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQRCodeView(bool isDarkMode, Color textColor) {
+    final selectedFieldsCount = _qrData?.length ?? 0;
     final qrContent = _formatDataForQR(_qrData!);
     
+    // QR Code background should be light to ensure scannability
+    final qrBgColor = Colors.white;
+    final qrTextColor = Colors.black;
+
     return SingleChildScrollView(
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -631,17 +692,7 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
               width: double.infinity,
               padding: EdgeInsets.all(_isSmallScreen ? 16.0 : 20.0),
               margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+              decoration: AppTheme.getCardDecoration(isDarkMode),
               child: Column(
                 children: [
                   Row(
@@ -651,7 +702,7 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
                         _isDigitalIDCard(widget.selectedCardType) 
                             ? Icons.perm_identity
                             : Icons.drive_eta,
-                        color: const Color(0xFF13A4B4),
+                        color: AppTheme.primaryColor,
                         size: _fontSizeTitle,
                       ),
                       const SizedBox(width: 8),
@@ -660,7 +711,7 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
                         style: TextStyle(
                           fontSize: _fontSizeTitle,
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey[700],
+                          color: textColor,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -670,13 +721,13 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.timer, size: _isSmallScreen ? 16 : 18, color: Colors.grey[600]),
+                      Icon(Icons.timer, size: _isSmallScreen ? 16 : 18, color: textColor.withOpacity(0.7)),
                       const SizedBox(width: 4),
                       Text(
                         'Expires in: ${_getRemainingTime()}',
                         style: TextStyle(
                           fontSize: _fontSizeBody,
-                          color: Colors.grey[600],
+                          color: textColor.withOpacity(0.7),
                         ),
                       ),
                     ],
@@ -686,7 +737,7 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
                     'This QR can only be scanned once',
                     style: TextStyle(
                       fontSize: _fontSizeSmall,
-                      color: Colors.orange[700],
+                      color: Colors.orange,
                       fontWeight: FontWeight.w500,
                     ),
                     textAlign: TextAlign.center,
@@ -697,11 +748,11 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
             
             const SizedBox(height: 20),
             
-            // QR Code Container
+            // QR Code Container (Always light)
             Container(
               padding: EdgeInsets.all(_isSmallScreen ? 20.0 : 24.0),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: qrBgColor,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
@@ -717,7 +768,7 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
                     data: qrContent,
                     version: QrVersions.auto,
                     size: _qrCodeSize,
-                    backgroundColor: Colors.white,
+                    backgroundColor: qrBgColor,
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -739,10 +790,7 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
             Container(
               width: double.infinity,
               padding: EdgeInsets.all(_isSmallScreen ? 16.0 : 20.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
+              decoration: AppTheme.getCardDecoration(isDarkMode),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -751,6 +799,7 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
                     style: TextStyle(
                       fontSize: _fontSizeBody,
                       fontWeight: FontWeight.bold,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -758,7 +807,7 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 2),
                     child: Text(
                       '• ${entry.key}: ${entry.value}',
-                      style: TextStyle(fontSize: _fontSizeSmall),
+                      style: TextStyle(fontSize: _fontSizeSmall, color: textColor.withOpacity(0.8)),
                     ),
                   )),
                 ],
@@ -771,10 +820,7 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
             Container(
               width: double.infinity,
               padding: EdgeInsets.all(_isSmallScreen ? 16.0 : 20.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
+              decoration: AppTheme.getCardDecoration(isDarkMode),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -783,15 +829,16 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
                     style: TextStyle(
                       fontSize: _fontSizeBody,
                       fontWeight: FontWeight.bold,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.grey[50],
+                      color: isDarkMode ? Colors.black.withOpacity(0.3) : Colors.grey[100],
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[300]!),
+                      border: Border.all(color: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.grey[300]!),
                     ),
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
@@ -800,6 +847,7 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
                         style: TextStyle(
                           fontSize: _fontSizeSmall,
                           fontFamily: 'Monospace',
+                          color: textColor.withOpacity(0.9),
                         ),
                       ),
                     ),
@@ -811,165 +859,23 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
             const SizedBox(height: 20),
             
             // Action Buttons
-            _buildQRActionButtons(),
+            _buildQRActionButtons(isDarkMode, textColor),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFieldItem(String fieldName, String fieldValue, List<String> sourceCards) {
-    return Card(
-      margin: EdgeInsets.symmetric(
-        vertical: _isSmallScreen ? 4.0 : 6.0,
-        horizontal: 0,
-      ),
-      child: CheckboxListTile(
-        title: Text(
-          fieldName,
-          style: TextStyle(
-            fontSize: _fontSizeBody,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              fieldValue,
-              style: TextStyle(fontSize: _fontSizeSmall),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Available in: ${_getSourcesDescription(sourceCards)}',
-              style: TextStyle(
-                fontSize: _fontSizeSmall - 2,
-                color: Colors.grey[600],
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-        value: selectedFields[fieldName] ?? false,
-        onChanged: (bool? value) {
-          setState(() {
-            selectedFields[fieldName] = value ?? false;
-          });
-          // Save the selection immediately when changed
-          _saveSelectedFields();
-        },
-        controlAffinity: ListTileControlAffinity.leading,
-        activeColor: const Color(0xFF13A4B4),
-        contentPadding: EdgeInsets.symmetric(
-          horizontal: _isSmallScreen ? 16.0 : 20.0,
-          vertical: _isSmallScreen ? 8.0 : 12.0,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButtons(BuildContext context) {
-    final selectedCount = selectedFields.values.where((value) => value).length;
-    
-    return Column(
-      children: [
-        if (selectedCount > 0)
-          Container(
-            padding: EdgeInsets.all(_isSmallScreen ? 12.0 : 16.0),
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: Colors.green[50],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.green[200]!),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.check_circle, color: Colors.green[700], 
-                    size: _isSmallScreen ? 16 : 18),
-                const SizedBox(width: 8),
-                Text(
-                  '$selectedCount ${_getCardTypeDescription().toLowerCase()} field${selectedCount > 1 ? 's' : ''} selected for sharing',
-                  style: TextStyle(
-                    fontSize: _fontSizeBody,
-                    color: Colors.green[700],
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.black,
-                  padding: EdgeInsets.symmetric(
-                    vertical: _isSmallScreen ? 16.0 : 18.0,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  'Cancel',
-                  style: TextStyle(fontSize: _fontSizeBody),
-                ),
-              ),
-            ),
-            SizedBox(width: _isSmallScreen ? 16 : 20),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: selectedCount > 0 ? _generateQRCode : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: selectedCount > 0 
-                      ? const Color(0xFF13A4B4)
-                      : Colors.grey,
-                  foregroundColor: Colors.black,
-                  padding: EdgeInsets.symmetric(
-                    vertical: _isSmallScreen ? 16.0 : 18.0,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  'Generate QR Code',
-                  style: TextStyle(fontSize: _fontSizeBody),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQRActionButtons() {
+  Widget _buildQRActionButtons(bool isDarkMode, Color textColor) {
     return Row(
       children: [
         Expanded(
           child: OutlinedButton(
             onPressed: _closeQRCode,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.black,
-              padding: EdgeInsets.symmetric(
-                vertical: _isSmallScreen ? 16.0 : 18.0,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+            style: AppTheme.getOutlineButtonStyle(isDarkMode),
             child: Text(
               'Close QR',
-              style: TextStyle(fontSize: _fontSizeBody),
+              style: TextStyle(fontSize: _fontSizeBody, color: textColor),
             ),
           ),
         ),
@@ -982,15 +888,8 @@ class _IDCardSelectionScreenState extends State<IDCardSelectionScreen> {
                 const SnackBar(content: Text('QR code closed')),
               );
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF13A4B4),
-              foregroundColor: Colors.black,
-              padding: EdgeInsets.symmetric(
-                vertical: _isSmallScreen ? 16.0 : 18.0,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+            style: AppTheme.primaryButtonStyle.copyWith(
+               foregroundColor: WidgetStateProperty.all(Colors.black),
             ),
             child: Text(
               'Done',
