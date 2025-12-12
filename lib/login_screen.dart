@@ -557,7 +557,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final isDeviceSupported = await auth.isDeviceSupported();
 
       if (!canAuthenticate || !isDeviceSupported) {
-        _showBiometricNotAvailableDialog();
+        _navigateToFaceDetectionDirectly();
         return;
       }
 
@@ -566,7 +566,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!availableBiometrics.contains(BiometricType.face) &&
           !availableBiometrics.contains(BiometricType.fingerprint)) {
-        _showBiometricNotAvailableDialog();
+        _navigateToFaceDetectionDirectly();
         return;
       }
 
@@ -643,7 +643,7 @@ class _LoginScreenState extends State<LoginScreen> {
       print("Face ID auth error: $e");
 
       if (e.code == 'NotAvailable') {
-        _showBiometricNotAvailableDialog();
+        _navigateToFaceDetectionDirectly();
       } else if (e.code == 'PasscodeNotSet') {
         _showPasscodeNotSetDialog();
       } else if (e.code == 'LockedOut' || e.code == 'PermanentlyLockedOut') {
@@ -665,53 +665,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _showBiometricNotAvailableDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.face_retouching_off, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('Biometric Unavailable'),
-          ],
-        ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Biometric authentication is not available on this device.',
-              style: TextStyle(fontSize: 16),
-            ),
-            SizedBox(height: 12),
-            Text(
-              'Please ensure:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            Text('• Device has Face ID/Touch ID capability'),
-            Text('• Biometric is set up in device settings'),
-            Text('• App has biometric permission'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Optionally navigate to face detection directly
-              _navigateToFaceDetectionDirectly();
-            },
-            child: const Text('Use Face Detection Anyway'),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   void _showPasscodeNotSetDialog() {
     showDialog(

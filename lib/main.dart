@@ -5,6 +5,7 @@ import 'package:new_project/face_detection_screen.dart';
 import 'package:new_project/theme_provider.dart';
 import 'login_screen.dart';
 import 'id_verification_screen.dart';
+import 'splash_screen.dart';
 
 void main() {
   runApp(
@@ -37,7 +38,7 @@ class MyApp extends StatelessWidget {
                   : ThemeData.light().textTheme,
             ),
           ),
-          home: const WelcomeScreen(),
+          home: const SplashScreen(),
         );
       },
     );
