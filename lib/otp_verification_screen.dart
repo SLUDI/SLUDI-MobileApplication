@@ -4,6 +4,7 @@ import 'package:pinput/pinput.dart';
 import 'dart:async';
 import 'api_service.dart';
 import 'register_screen.dart';
+import 'app_theme.dart';
 
 class OTPVerificationScreen extends StatefulWidget {
   final String idNumber;
@@ -312,8 +313,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => Dialog(
+        backgroundColor: AppTheme.darkBg2,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Container(
           width: _dialogWidth,
@@ -325,18 +327,25 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               // Title Row
               Row(
                 children: [
-                  Icon(Icons.check_circle, 
-                    color: Colors.green[700], 
-                    size: _isSmallScreen ? 22 : 24
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.check_circle, 
+                      color: Colors.green, 
+                      size: _isSmallScreen ? 22 : 24
+                    ),
                   ),
-                  SizedBox(width: _isSmallScreen ? 8 : 10),
+                  SizedBox(width: _isSmallScreen ? 12 : 16),
                   Expanded(
                     child: Text(
                       title,
                       style: TextStyle(
                         fontSize: _isSmallScreen ? _fontSizeBody : _fontSizeTitle - 2,
                         fontWeight: FontWeight.bold,
-                        color: Colors.green[700],
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -350,7 +359,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 message,
                 style: TextStyle(
                   fontSize: _isSmallScreen ? _fontSizeSmall : _fontSizeBody,
-                  color: Colors.black87,
+                  color: Colors.white.withOpacity(0.7),
                   height: 1.4,
                 ),
                 textAlign: TextAlign.left,
@@ -363,14 +372,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: onOk ?? () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF13A4B4),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: EdgeInsets.symmetric(
-                      vertical: _isSmallScreen ? 12 : 14,
+                  style: AppTheme.primaryButtonStyle.copyWith(
+                    padding: WidgetStateProperty.all(
+                      EdgeInsets.symmetric(vertical: _isSmallScreen ? 12 : 14),
                     ),
                   ),
                   child: Text(
@@ -391,64 +395,85 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Dark theme pin styles
     final defaultPinTheme = PinTheme(
       width: _pinFieldSize,
       height: _pinFieldSize,
       textStyle: TextStyle(
         fontSize: _fontSizeBody,
-        color: const Color.fromRGBO(30, 60, 87, 1),
+        color: Colors.white,
         fontWeight: FontWeight.w600,
       ),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade400),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
         borderRadius: BorderRadius.circular(12),
-        color: Colors.grey.shade50,
+        color: Colors.white.withOpacity(0.1),
       ),
     );
 
     final focusedPinTheme = defaultPinTheme.copyDecorationWith(
-      border: Border.all(color: const Color(0xFF13A4B4)),
+      border: Border.all(color: AppTheme.primaryColor, width: 2),
       borderRadius: BorderRadius.circular(12),
     );
 
     final submittedPinTheme = defaultPinTheme.copyDecorationWith(
-      border: Border.all(color: const Color(0xFF13A4B4)),
+      border: Border.all(color: AppTheme.primaryColor),
       borderRadius: BorderRadius.circular(12),
-      color: const Color.fromRGBO(234, 239, 243, 1),
+      color: AppTheme.primaryColor.withOpacity(0.2),
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'OTP Confirmation',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: _fontSizeBody,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: const Color(0xFF13A4B4),
-      ),
-      body: SafeArea(
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFFFFFFFF),  // White
-                Color(0xFFD6E6F2),  // Light blue
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppTheme.darkGradient),
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: _horizontalPadding,
+              vertical: _verticalPadding,
+            ),
+            child: Column(
+              children: [
+                // Custom header matching other screens
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Step 2 of 3',
+                        style: TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    const SizedBox(width: 48), // Balance for back button
+                  ],
+                ),
+                const SizedBox(height: 24),
+                // Main content
+                Expanded(
+                  child: _buildContent(defaultPinTheme, focusedPinTheme, submittedPinTheme),
+                ),
               ],
-              stops: [0.1, 0.9],
-            ),                  
+            ),
           ),
-          padding: EdgeInsets.symmetric(
-            horizontal: _horizontalPadding,
-            vertical: _verticalPadding,
-          ),
-          child: _buildContent(defaultPinTheme, focusedPinTheme, submittedPinTheme),
         ),
       ),
     );
@@ -467,23 +492,39 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Icon
-            Icon(
-              Icons.verified_user_outlined,
-              size: _iconSize,
-              color: const Color(0xFF13A4B4).withOpacity(0.8),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.primaryColor.withOpacity(0.3),
+                    AppTheme.primaryColor.withOpacity(0.1),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withOpacity(0.3),
+                    blurRadius: 30,
+                    spreadRadius: 5,
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.verified_user_outlined,
+                size: _iconSize,
+                color: AppTheme.primaryColor,
+              ),
             ),
             
-            SizedBox(height: _isSmallScreen ? 16 : 20),
+            SizedBox(height: _isSmallScreen ? 24 : 32),
             
             // Title
             Text(
               "OTP Verification",
-              style: TextStyle(
+              style: AppTheme.headingStyle.copyWith(
                 fontSize: _fontSizeTitle,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF13A4B4),
               ),
-              textAlign: TextAlign.center,
             ),
             
             SizedBox(height: _isSmallScreen ? 12 : 16),
@@ -491,10 +532,8 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             // Instruction message with dynamic email
             Text(
               "We've sent a 6-digit verification code to $_maskedEmail",
-              style: TextStyle(
+              style: AppTheme.subtitleStyle.copyWith(
                 fontSize: _fontSizeBody,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
               ),
               textAlign: TextAlign.center,
             ),
@@ -506,7 +545,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               "Verifying ID: ${widget.idNumber}",
               style: TextStyle(
                 fontSize: _fontSizeSmall,
-                color: Colors.grey,
+                color: Colors.white.withOpacity(0.5),
                 fontWeight: FontWeight.w500,
               ),
               textAlign: TextAlign.center,
@@ -521,20 +560,20 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 padding: EdgeInsets.all(_isSmallScreen ? 12 : 16),
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red[200]!),
+                  color: Colors.red.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline, color: Colors.red[800], size: 20),
+                    const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
                     SizedBox(width: _isSmallScreen ? 8 : 12),
                     Expanded(
                       child: Text(
                         _errorMessage!,
-                        style: TextStyle(
-                          color: Colors.red[800],
-                          fontSize: _fontSizeSmall,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 14,
                         ),
                       ),
                     ),
@@ -565,20 +604,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             
             SizedBox(height: _isSmallScreen ? 24 : 30),
             
-            // Resend Code Section - FIXED VERSION
+            // Resend Code Section
             Container(
               padding: EdgeInsets.all(_isSmallScreen ? 12 : 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+              decoration: AppTheme.glassDecoration(opacity: 0.1, borderRadius: 12),
               child: _buildResendSection(),
             ),
             
@@ -587,71 +616,66 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             // Verify Button
             SizedBox(
               width: double.infinity,
-              height: _buttonHeight,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _verifyOTP,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF13A4B4),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 2,
-                  shadowColor: const Color(0xFF13A4B4).withOpacity(0.3),
-                ),
+                style: AppTheme.primaryButtonStyle,
                 child: _isLoading
-                    ? SizedBox(
-                        height: 20,
-                        width: 20,
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
                         child: CircularProgressIndicator(
-                          strokeWidth: 2,
+                          strokeWidth: 2.5,
                           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
-                    : Row(
+                    : const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.verified, size: _isSmallScreen ? 18 : 20),
-                          SizedBox(width: _isSmallScreen ? 6 : 8),
                           Text(
                             'Verify OTP',
                             style: TextStyle(
-                              fontSize: _fontSizeBody,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_forward_rounded),
                         ],
                       ),
               ),
             ),
             
-            SizedBox(height: _isSmallScreen ? 16 : 20),
+            SizedBox(height: _isSmallScreen ? 24 : 32),
             
-            // Back button
-            TextButton(
-              onPressed: _isLoading ? null : () => Navigator.pop(context),
+            // Security note
+            Center(
               child: Text(
-                'Back to ID Entry',
+                'Your data is encrypted and secure',
                 style: TextStyle(
-                  fontSize: _fontSizeSmall,
-                  color: const Color(0xFF13A4B4),
+                  color: Colors.white.withOpacity(0.5),
+                  fontSize: 13,
                 ),
               ),
             ),
             
-            // Footer note - only show on larger screens or if there's space
-            if (_isMediumScreen || _isLargeScreen)
-              Padding(
-                padding: EdgeInsets.only(top: _isSmallScreen ? 16 : 20),
-                child: Text(
-                  'If you don\'t receive the code within 5 minutes, please check your spam folder',
-                  style: TextStyle(
-                    fontSize: _fontSizeSmall - 2,
-                    color: Colors.grey,
+            const SizedBox(height: 8),
+            
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.lock_outline, size: 14, color: Colors.white.withOpacity(0.4)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Protected by SLUDI Security',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.4),
+                      fontSize: 12,
+                    ),
                   ),
-                  textAlign: TextAlign.center,
-                ),
+                ],
               ),
+            ),
           ],
         ),
       ),
@@ -670,17 +694,17 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             children: [
               Icon(
                 Icons.access_time,
-                color: _canResend ? const Color(0xFF13A4B4) : Colors.grey,
+                color: _canResend ? AppTheme.primaryColor : Colors.white.withOpacity(0.5),
                 size: 18,
               ),
-              SizedBox(width: 6),
+              const SizedBox(width: 6),
               Text(
                 _remainingTime > 0
                     ? 'Resend code in $_remainingTime seconds'
                     : 'Ready for new code?',
                 style: TextStyle(
                   fontSize: _fontSizeSmall,
-                  color: _canResend ? const Color(0xFF13A4B4) : Colors.grey,
+                  color: _canResend ? AppTheme.primaryColor : Colors.white.withOpacity(0.7),
                   fontWeight: FontWeight.w500,
                 ),
                 textAlign: TextAlign.center,
@@ -688,11 +712,11 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             ],
           ),
           if (_canResend) ...[
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             TextButton(
               onPressed: _isLoading ? null : resendCode,
               style: TextButton.styleFrom(
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 8,
                 ),
@@ -700,12 +724,12 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: _isLoading
-                  ? SizedBox(
+                  ? const SizedBox(
                       height: 14,
                       width: 14,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(const Color(0xFF13A4B4)),
+                        valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
                       ),
                     )
                   : Text(
@@ -713,7 +737,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                       style: TextStyle(
                         fontSize: _fontSizeSmall,
                         fontWeight: FontWeight.bold,
-                        color: const Color(0xFF13A4B4),
+                        color: AppTheme.primaryColor,
                       ),
                     ),
             ),
@@ -728,7 +752,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       children: [
         Icon(
           Icons.access_time,
-          color: _canResend ? const Color(0xFF13A4B4) : Colors.grey,
+          color: _canResend ? AppTheme.primaryColor : Colors.white.withOpacity(0.5),
           size: 18,
         ),
         SizedBox(width: _isSmallScreen ? 6 : 8),
@@ -739,7 +763,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 : 'Ready for new code?',
             style: TextStyle(
               fontSize: _fontSizeSmall,
-              color: _canResend ? const Color(0xFF13A4B4) : Colors.grey,
+              color: _canResend ? AppTheme.primaryColor : Colors.white.withOpacity(0.7),
               fontWeight: FontWeight.w500,
             ),
             maxLines: 2,
@@ -760,12 +784,12 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: _isLoading
-                  ? SizedBox(
+                  ? const SizedBox(
                       height: 14,
                       width: 14,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(const Color(0xFF13A4B4)),
+                        valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
                       ),
                     )
                   : Text(
@@ -773,7 +797,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                       style: TextStyle(
                         fontSize: _fontSizeSmall,
                         fontWeight: FontWeight.bold,
-                        color: const Color(0xFF13A4B4),
+                        color: AppTheme.primaryColor,
                       ),
                     ),
             ),
