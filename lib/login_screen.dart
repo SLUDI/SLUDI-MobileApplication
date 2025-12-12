@@ -23,6 +23,8 @@ import 'package:pointycastle/random/fortuna_random.dart';
 import 'package:pointycastle/signers/ecdsa_signer.dart';
 import 'main_screen.dart';
 import 'api_service.dart';
+import 'package:provider/provider.dart';
+import 'theme_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? preFilledDid;
