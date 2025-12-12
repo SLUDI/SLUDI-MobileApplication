@@ -926,7 +926,7 @@ class _FaceDetectionScreenImprovedState extends State<FaceDetectionScreen> {
                         SizedBox(width: 10),
                         Text(
                           'Start 5-Second Verification',
-                          style: TextStyle(fontSize: 16, foface_detection_screenntWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
