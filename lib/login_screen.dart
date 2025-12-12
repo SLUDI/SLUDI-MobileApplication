@@ -1242,45 +1242,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
 
                             const SizedBox(width: 20),
-
-                            // Fingerprint Button
-                            ElevatedButton(
-                              onPressed: _isLoading
-                                  ? null
-                                  : _authenticateWithBiometrics,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color.fromARGB(
-                                  255,
-                                  214,
-                                  214,
-                                  214,
-                                ).withOpacity(0.1),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                padding: const EdgeInsets.all(16),
-                                elevation: 0,
-                                minimumSize: const Size(80, 80),
-                              ),
-                              child: const Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.fingerprint,
-                                    size: 32,
-                                    color: Color(0xFF13A4B4),
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Fingerprint',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF13A4B4),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                           ],
                         ),
                       ],

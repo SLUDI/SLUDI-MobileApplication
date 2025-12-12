@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:new_project/main.dart';
 import 'edit_profile_screen.dart';
 import 'change_password_screen.dart';
+import 'main.dart'; // Make sure to import your WelcomeScreen
 import 'api_service.dart';
 import 'dart:convert';
 
@@ -132,6 +134,44 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
     );
   }
 
+  Future<void> _signOut(BuildContext context) async {
+    // Show confirmation dialog
+    final shouldSignOut = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text('Are you sure you want to sign out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Sign Out',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldSignOut == true) {
+      // Perform any cleanup here if needed
+      // For example, clear tokens, clear local storage, etc.
+      // await ApiService.signOut();
+      // await clearLocalStorage();
+      
+      // Navigate to WelcomeScreen and remove all previous screens
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+        (route) => false,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -215,13 +255,13 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
                         ),
                         
                         // Refresh button
-                        TextButton(
-                          onPressed: _loadProfileData,
-                          child: const Text(
-                            'Refresh Profile',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
+                        // TextButton(
+                        //   onPressed: _loadProfileData,
+                        //   // child: const Text(
+                        //   //   //'Refresh Profile',
+                        //   //   //style: TextStyle(fontSize: 12),
+                        //   // ),
+                        // ),
                       ],
                     ),
                   ),
@@ -240,7 +280,7 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
                   Center(
                     child: TextButton(
                       onPressed: () {
-                        // Add sign out functionality
+                        _signOut(context);
                       },
                       child: const Text(
                         'Sign out',
@@ -286,6 +326,13 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
               break;
             case 'Documents':
               // Navigate to documents screen
+              // TODO: Implement documents screen navigation
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Documents screen coming soon!'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
               break;
             case 'Change Password':
               Navigator.push(

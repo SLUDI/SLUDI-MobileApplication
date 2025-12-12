@@ -1,93 +1,201 @@
+// lib/screens/history_screen.dart
 import 'package:flutter/material.dart';
+import 'package:new_project/api_service.dart';
+import 'api_service.dart';
+import '../models/presentation_history.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  List<PresentationHistory> _transactions = [];
+  bool _isLoading = true;
+  String _errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    final response = await ApiService.getPresentationHistory();
+
+    if (response.success && response.data != null) {
+      setState(() {
+        _transactions = response.data!;
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _errorMessage = response.message;
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _refreshHistory() async {
+    await _loadHistory();
+  }
+
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 20),
+          Text(
+            'Loading transaction history...',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 64,
+            color: Colors.red,
+          ),
+          SizedBox(height: 20),
+          Text(
+            'Failed to load history',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.red,
+            ),
+          ),
+          SizedBox(height: 10),
+          Text(
+            _errorMessage,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+          SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: _loadHistory,
+            child: Text('Retry'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.history_toggle_off,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          SizedBox(height: 20),
+          Text(
+            'No transactions yet',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[600],
+            ),
+          ),
+          SizedBox(height: 10),
+          Text(
+            'Your shared data history will appear here',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Transaction', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Transaction History',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         automaticallyImplyLeading: false,
         actions: [
-          
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: _refreshHistory,
+            tooltip: 'Refresh',
+          ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFFFFF),  // White
-              Color(0xFFD6E6F2),  // Light blue
-            ],
-            stops: [0.1, 0.9],
-          ),                  
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-             
-              const SizedBox(height: 20),
-              
-              // Police Officer Transaction
-              _buildTransactionCard(
-                title: 'Police Officer',
-                userId: '1534 8762 9836 0937',
-                date: '20/07/2025',
-                time: '12.40 PM',
-                data: 'Driving License',
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Bank Officer Transaction
-              _buildTransactionCard(
-                title: 'Bank Officer',
-                userId: '1534 8762 9836 0937',
-                date: '20/07/2025',
-                time: '12.40 PM',
-                data: 'Digital ID',
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Doctor Transaction
-              _buildTransactionCard(
-                title: 'Doctor',
-                userId: '1534 8762 9836 0937',
-                date: '20/07/2025',
-                time: '12.40 PM',
-                data: 'Medical Details',
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Grama Niladari Transaction
-              _buildTransactionCard(
-                title: 'Grama Niladari',
-                userId: '1534 8762 9836 0937',
-                date: '20/07/2025',
-                time: '12.40 PM',
-              ),
-            ],
+      body: RefreshIndicator(
+        onRefresh: _refreshHistory,
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFFFFFFF), // White
+                Color(0xFFD6E6F2), // Light blue
+              ],
+              stops: [0.1, 0.9],
+            ),
           ),
+          child: _isLoading
+              ? _buildLoadingState()
+              : _errorMessage.isNotEmpty
+                  ? _buildErrorState()
+                  : _transactions.isEmpty
+                      ? _buildEmptyState()
+                      : _buildHistoryList(),
         ),
       ),
     );
   }
 
-  Widget _buildTransactionCard({
-    required String title,
-    required String userId,
-    required String date,
-    required String time,
-    String? data,
-  }) {
+  Widget _buildHistoryList() {
+    return ListView.separated(
+      padding: const EdgeInsets.all(16.0),
+      itemCount: _transactions.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 16),
+      itemBuilder: (context, index) {
+        return _buildTransactionCard(_transactions[index]);
+      },
+    );
+  }
+
+  Widget _buildTransactionCard(PresentationHistory transaction) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
@@ -98,18 +206,76 @@ class HistoryScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    transaction.requesterName,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: transaction.statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: transaction.statusColor,
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    transaction.statusDisplay,
+                    style: TextStyle(
+                      color: transaction.statusColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const Divider(thickness: 1),
-            _TransactionRow(label: 'User ID :', value: userId),
-            _TransactionRow(label: 'Date :', value: date),
-            _TransactionRow(label: 'Time :', value: time),
-            if (data != null) _TransactionRow(label: 'Data :', value: data),
+            _TransactionRow(
+              label: 'Session ID :',
+              value: transaction.sessionId,
+            ),
+            _TransactionRow(
+              label: 'Requester ID :',
+              value: transaction.requesterId,
+            ),
+            _TransactionRow(
+              label: 'Date :',
+              value: transaction.formattedDate,
+            ),
+            _TransactionRow(
+              label: 'Time :',
+              value: transaction.formattedTime,
+            ),
+            _TransactionRow(
+              label: 'Purpose :',
+              value: transaction.purpose,
+            ),
+            if (transaction.requestedAttributes.isNotEmpty)
+              _TransactionRow(
+                label: 'Requested :',
+                value: transaction.requestedAttributes.join(', '),
+              ),
+            if (transaction.sharedAttributes.isNotEmpty)
+              _TransactionRow(
+                label: 'Shared Data :',
+                value: transaction.sharedDataSummary,
+              ),
+            if (transaction.fulfilledAt != null)
+              _TransactionRow(
+                label: 'Shared On :',
+                value: '${transaction.fulfilledAt!.day}/${transaction.fulfilledAt!.month}/${transaction.fulfilledAt!.year} ${transaction.fulfilledAt!.hour.toString().padLeft(2, '0')}:${transaction.fulfilledAt!.minute.toString().padLeft(2, '0')}',
+              ),
           ],
         ),
       ),
@@ -129,12 +295,12 @@ class _TransactionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 80,
+            width: 100,
             child: Text(
               label,
               style: const TextStyle(
@@ -143,7 +309,12 @@ class _TransactionRow extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Text(value),
+            child: Text(
+              value,
+              style: TextStyle(
+                color: Colors.grey[700],
+              ),
+            ),
           ),
         ],
       ),

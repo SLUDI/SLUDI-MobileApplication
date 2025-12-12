@@ -6,6 +6,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:http/http.dart' as http;
+import 'package:new_project/models/presentation_history.dart';
 import 'package:pointycastle/export.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -55,6 +56,8 @@ class ApiService {
 
     return headers;
   }
+
+  
 
   // Add this method to your ApiService class
   static Future<ApiResponse<String>> getProfilePhoto(String cid) async {
@@ -107,6 +110,62 @@ class ApiService {
       );
     }
   }
+
+  // Add this method to ApiService class
+static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() async {
+  try {
+    final uri = Uri.parse('$baseUrl/api/wallet/presentation/history');
+    print('[getPresentationHistory] -> GET $uri');
+
+    final response = await http
+        .get(uri, headers: _getHeaders())
+        .timeout(httpTimeout);
+
+    print('[getPresentationHistory] <-- ${response.statusCode}');
+    print('[getPresentationHistory] Response body: ${response.body}');
+
+    final jsonResponse = _safeJsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return ApiResponse.fromJson(
+        jsonResponse,
+        (data) {
+          if (data is List) {
+            return data
+                .map((item) => PresentationHistory.fromJson(item))
+                .toList();
+          }
+          return [];
+        },
+      );
+    } else {
+      return ApiResponse<List<PresentationHistory>>(
+        success: false,
+        message: jsonResponse['message'] ?? 'Failed to fetch presentation history',
+        errorCode: jsonResponse['errorCode'],
+      );
+    }
+  } on TimeoutException catch (e) {
+    print('[getPresentationHistory] TimeoutException: $e');
+    return ApiResponse<List<PresentationHistory>>(
+      success: false,
+      message: 'Request timed out. Check your internet connection.',
+    );
+  } on SocketException catch (e) {
+    print('[getPresentationHistory] SocketException: $e');
+    return ApiResponse<List<PresentationHistory>>(
+      success: false,
+      message: 'Network error. Please check your connection.',
+    );
+  } catch (e, st) {
+    print('[getPresentationHistory] Unexpected error: $e');
+    print(st);
+    return ApiResponse<List<PresentationHistory>>(
+      success: false,
+      message: 'Unexpected error: $e',
+    );
+  }
+}
 
   static Future<Map<String, dynamic>> createWallet(
     String idNumber,
