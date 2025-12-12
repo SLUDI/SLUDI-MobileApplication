@@ -13,6 +13,7 @@ import 'package:crypto/crypto.dart';
 import 'package:new_project/face_detection_screen.dart';
 import 'package:new_project/id_verification_screen.dart';
 import 'package:new_project/offline_auth_dialog.dart';
+import 'package:new_project/offline_auth_service.dart';
 import 'package:new_project/storage_service.dart';
 import 'package:new_project/app_theme.dart';
 import 'package:pointycastle/api.dart' hide Padding;
@@ -103,6 +104,26 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  /// Fetch user data from API and store locally for offline use (QR scanning, etc.)
+  Future<void> _fetchAndStoreUserData() async {
+    try {
+      print('[Login] 📥 Fetching user data for local storage...');
+      
+      final walletData = await ApiService.getWalletStatus();
+      
+      if (walletData['success'] == true && walletData['data'] != null) {
+        // Store the complete wallet data for offline use
+        await OfflineAuthService.storeUserDataLocally(walletData['data']);
+        print('[Login] ✅ User data stored locally for offline use');
+      } else {
+        print('[Login] ⚠️ Could not fetch user data: ${walletData['error'] ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      print('[Login] ⚠️ Error storing user data locally: $e');
+      // Don't fail the login if this fails - it's optional for offline features
+    }
+  }
+
   Future<void> _handleEmailPasswordLogin() async {
     // Basic validation
     if (_didController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -188,6 +209,9 @@ class _LoginScreenState extends State<LoginScreen> {
             });
             print('[Login] 🔒 Device now locked to DID: $enteredDid');
           }
+
+          // ✅ Fetch and store user data for offline features (QR scanning, etc.)
+          await _fetchAndStoreUserData();
 
           ScaffoldMessenger.of(
             context,
@@ -610,6 +634,9 @@ class _LoginScreenState extends State<LoginScreen> {
               );
             }
 
+            // ✅ Fetch and store user data for offline features (QR scanning, etc.)
+            await _fetchAndStoreUserData();
+
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Face verification successful!')),
             );
@@ -753,6 +780,9 @@ class _LoginScreenState extends State<LoginScreen> {
             _isDidLocked = true;
           });
         }
+
+        // ✅ Fetch and store user data for offline features (QR scanning, etc.)
+        await _fetchAndStoreUserData();
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Face verification successful!')),
