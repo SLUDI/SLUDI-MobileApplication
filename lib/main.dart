@@ -307,7 +307,7 @@ class WelcomeScreen extends StatelessWidget {
                 
                 // Footer text
                 Text(
-                  '© 2024 SLUDI. All rights reserved.',
+                  '© 2025 SLUDI. All rights reserved.',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withOpacity(0.5),
