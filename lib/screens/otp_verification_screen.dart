@@ -2,9 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:pinput/pinput.dart';
 import 'dart:async';
-import 'api_service.dart';
+import '../services/api_service.dart';
 import 'register_screen.dart';
-import 'app_theme.dart';
+import '../theme/app_theme.dart';
 
 class OTPVerificationScreen extends StatefulWidget {
   final String idNumber;

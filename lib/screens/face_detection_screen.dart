@@ -5,14 +5,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
-import 'package:new_project/main_screen.dart';
-import 'package:new_project/app_theme.dart';
+import 'package:new_project/screens/main_screen.dart';
+import 'package:new_project/theme/app_theme.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:video_compress/video_compress.dart';
 import 'package:provider/provider.dart';
-import 'theme_provider.dart';
-import 'api_service.dart';
+import '../providers/theme_provider.dart';
+import '../services/api_service.dart';
 
 class FaceDetectionScreen extends StatefulWidget {
   final String idNumber;

@@ -2,7 +2,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'offline_auth_service.dart';
+import '../services/offline_auth_service.dart';
 
 class OfflineAuthDialog extends StatefulWidget {
   final String idNumber;

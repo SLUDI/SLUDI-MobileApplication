@@ -1,10 +1,10 @@
 // lib/register_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:new_project/login_screen.dart';
-import 'package:new_project/api_service.dart';
-import 'package:new_project/app_theme.dart';
-import 'package:new_project/backup_screen.dart';
+import 'package:new_project/screens/login_screen.dart';
+import 'package:new_project/services/api_service.dart';
+import 'package:new_project/theme/app_theme.dart';
+import 'package:new_project/screens/backup_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   final String idNumber;

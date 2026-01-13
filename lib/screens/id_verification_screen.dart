@@ -1,8 +1,8 @@
 // lib/id_verification_screen.dart
 import 'package:flutter/material.dart';
-import 'api_service.dart';
+import '../services/api_service.dart';
 import 'otp_verification_screen.dart';
-import 'app_theme.dart';
+import '../theme/app_theme.dart';
 
 class IDVerificationScreen extends StatefulWidget {
   const IDVerificationScreen({super.key});

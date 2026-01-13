@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:new_project/api_service.dart';
-import 'package:new_project/app_theme.dart';
-import 'package:new_project/login_screen.dart';
+import 'package:new_project/services/api_service.dart';
+import 'package:new_project/theme/app_theme.dart';
+import 'package:new_project/screens/login_screen.dart';
 
 class RecoverWalletScreen extends StatefulWidget {
   const RecoverWalletScreen({super.key});

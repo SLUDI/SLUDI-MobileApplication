@@ -1,6 +1,6 @@
 // lib/services/offline_auth_service.dart
 import 'dart:convert';
-import 'package:new_project/storage_service.dart';
+import 'package:new_project/services/storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OfflineAuthService {

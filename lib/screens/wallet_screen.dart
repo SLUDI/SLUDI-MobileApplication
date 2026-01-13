@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:new_project/api_service.dart';
-import 'package:new_project/app_theme.dart';
-import 'package:new_project/theme_provider.dart';
+import 'package:new_project/services/api_service.dart';
+import 'package:new_project/theme/app_theme.dart';
+import 'package:new_project/providers/theme_provider.dart';
 import 'id_card_selection_screen.dart';
 
 class WalletScreen extends StatefulWidget {

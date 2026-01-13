@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:new_project/face_detection_screen.dart';
-import 'package:new_project/theme_provider.dart';
-import 'login_screen.dart';
-import 'id_verification_screen.dart';
-import 'splash_screen.dart';
+import 'package:new_project/screens/face_detection_screen.dart';
+import 'package:new_project/providers/theme_provider.dart';
+import '../screens/login_screen.dart';
+import '../screens/id_verification_screen.dart';
+import '../screens/splash_screen.dart';
 
 void main() {
   runApp(

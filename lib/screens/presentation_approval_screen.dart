@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:new_project/main_screen.dart';
-import 'package:new_project/offline_auth_service.dart';
-import 'package:new_project/storage_service.dart';
-import 'package:new_project/app_theme.dart';
+import 'package:new_project/screens/main_screen.dart';
+import 'package:new_project/services/offline_auth_service.dart';
+import 'package:new_project/services/storage_service.dart';
+import 'package:new_project/theme/app_theme.dart';
 import '../models/presentation_request.dart';
 import '../models/verifiable_presentation.dart';
 import '../models/credential.dart';
-import 'api_service.dart';
+import '../services/api_service.dart';
 
 class PresentationApprovalScreen extends StatefulWidget {
   final String sessionId;

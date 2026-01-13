@@ -1,7 +1,7 @@
 // lib/storage_service.dart
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'services/secure_storage_service.dart';
+import '../services/secure_storage_service.dart';
 
 class StorageService {
   static const String _registeredDidKey = 'registered_did';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:new_project/app_theme.dart';
-import 'package:new_project/login_screen.dart';
+import 'package:new_project/theme/app_theme.dart';
+import 'package:new_project/screens/login_screen.dart';
 
 class BackupScreen extends StatelessWidget {
   final String mnemonic;

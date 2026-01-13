@@ -1,6 +1,6 @@
 // lib/change_password_screen.dart
 import 'package:flutter/material.dart';
-import 'package:new_project/app_theme.dart';
+import 'package:new_project/theme/app_theme.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});

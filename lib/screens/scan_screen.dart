@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:new_project/app_theme.dart';
+import 'package:new_project/theme/app_theme.dart';
 import 'presentation_approval_screen.dart';
 
 class ScanScreen extends StatefulWidget {

@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:new_project/app_theme.dart';
-import 'api_service.dart';
+import 'package:new_project/theme/app_theme.dart';
+import '../services/api_service.dart';
 
 class EditWalletScreen extends StatefulWidget {
   const EditWalletScreen({super.key});

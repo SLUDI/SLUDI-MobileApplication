@@ -15,10 +15,10 @@ import 'package:bip39/bip39.dart' as bip39;
 import 'package:hex/hex.dart';
 import 'package:new_project/services/secure_storage_service.dart';
 
-import 'models/presentation_request.dart';
-import 'models/verifiable_presentation.dart';
-import 'models/credential.dart';
-import 'models/api_response.dart';
+import '../models/presentation_request.dart';
+import '../models/verifiable_presentation.dart';
+import '../models/credential.dart';
+import '../models/api_response.dart';
 
 class ApiService {
   static const String baseUrl = 'https://api.sludi.dpdns.org';

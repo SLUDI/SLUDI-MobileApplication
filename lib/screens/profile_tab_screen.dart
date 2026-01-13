@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:new_project/main.dart';
-import 'package:new_project/app_theme.dart';
-import 'package:new_project/theme_provider.dart';
+import 'package:new_project/theme/app_theme.dart';
+import 'package:new_project/providers/theme_provider.dart';
 import 'edit_profile_screen.dart';
 import 'change_password_screen.dart';
-import 'api_service.dart';
+import '../services/api_service.dart';
 import 'dart:convert';
 
 class ProfileTabScreen extends StatefulWidget {
