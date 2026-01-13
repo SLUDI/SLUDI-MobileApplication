@@ -23,7 +23,7 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
   String _selectedMode = 'age_verification';
   bool _isLoading = false;
   Map<String, dynamic>? _verificationResult;
-  
+
   final Map<String, bool> _selectedFields = {};
   final Map<String, String> _fieldDisplayNames = {
     'fullName': 'Full Name',
@@ -70,23 +70,23 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
         userData: widget.userData,
       );
 
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          if (result['success'] == true) {
-            _currentQRData = result['qrString'];
-            _selectedMode = type;
-            _verificationResult = result;
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error: ${result['error']}'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        });
-      }
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        if (result['success'] == true) {
+          _currentQRData = result['qrString'];
+          _selectedMode = type;
+          _verificationResult = result;
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${result['error']}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      });
     }
   }
 
@@ -98,33 +98,37 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
         userData: widget.userData,
       );
 
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          if (result['success'] == true) {
-            _currentQRData = result['qrString'];
-            _selectedMode = 'share_data';
-            _verificationResult = result;
-            
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('QR code generated with ${result['fieldsCount']} fields'),
-                backgroundColor: Colors.green,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error: ${result['error']}'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        });
-      }
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        if (result['success'] == true) {
+          _currentQRData = result['qrString'];
+          _selectedMode = 'share_data';
+          _verificationResult = result;
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('QR code generated with ${result['fieldsCount']} fields'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${result['error']}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      });
     } catch (e) {
-      setState(() { _isLoading = false; });
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error generating QR: $e'),
@@ -134,10 +138,16 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
     }
   }
 
+  // FIXED: supports BOTH "address.street" direct key AND nested address.street path
   String? _getFieldValue(String fieldPath) {
     try {
       final extractedData = OfflineAuthService.extractAllUserData(widget.userData);
-      
+
+      // 1) Try direct key (supports flat map keys like "address.street")
+      final direct = extractedData[fieldPath];
+      if (direct != null) return direct.toString();
+
+      // 2) Try nested traversal (supports {address:{street:...}})
       if (fieldPath.contains('.')) {
         final parts = fieldPath.split('.');
         dynamic current = extractedData;
@@ -149,26 +159,91 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
           }
         }
         return current?.toString();
-      } else {
-        return extractedData[fieldPath]?.toString();
       }
-    } catch (e) {
+
+      return extractedData[fieldPath]?.toString();
+    } catch (_) {
       return null;
     }
   }
 
-  Widget _buildVerificationOption(String type, String title, String description, IconData icon) {
+  Widget _buildVerificationOption(
+      String type, String title, String description, IconData icon) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: ListTile(
         leading: Icon(icon, color: Colors.blue, size: 20),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        title: Text(title,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         subtitle: Text(description, style: const TextStyle(fontSize: 12)),
-        trailing: _isLoading 
-            ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+        trailing: _isLoading
+            ? const SizedBox(
+                height: 16,
+                width: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
             : const Icon(Icons.qr_code, size: 20),
         onTap: _isLoading ? null : () => _generateQRCode(type),
         dense: true,
+      ),
+    );
+  }
+
+  Widget _buildSegmentTabs() {
+    final selectedCount = _selectedFields.values.where((v) => v).length;
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: TabBar(
+        dividerColor: Colors.transparent,
+        indicatorSize: TabBarIndicatorSize.tab,
+        splashBorderRadius: BorderRadius.circular(10),
+        labelPadding: EdgeInsets.zero,
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.black87,
+        indicator: BoxDecoration(
+          color: Colors.blue,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        tabs: [
+          const Tab(
+            child: SizedBox(
+              height: 36,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.verified_user, size: 16),
+                  SizedBox(width: 6),
+                  Text(
+                    'Age Verify',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Tab(
+            child: SizedBox(
+              height: 36,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.share, size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    selectedCount > 0 ? 'Share Data ($selectedCount)' : 'Share Data',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -185,8 +260,7 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 12),
-        
-        // Selected count indicator
+
         if (selectedCount > 0)
           Container(
             padding: const EdgeInsets.all(8),
@@ -212,8 +286,7 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
               ],
             ),
           ),
-        
-        // Fields list - RESPONSIVE HEIGHT
+
         Flexible(
           child: Container(
             decoration: BoxDecoration(
@@ -229,27 +302,32 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
                 final fieldKey = entry.key;
                 final displayName = entry.value;
                 final fieldValue = _getFieldValue(fieldKey);
-                
+
                 return Container(
                   margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
                   child: Card(
                     elevation: 1,
                     child: CheckboxListTile(
                       title: Text(displayName, style: const TextStyle(fontSize: 12)),
-                      subtitle: fieldValue != null 
+                      subtitle: fieldValue != null
                           ? Text(
-                              fieldValue.length > 30 
-                                ? '${fieldValue.substring(0, 30)}...' 
-                                : fieldValue,
+                              fieldValue.length > 30
+                                  ? '${fieldValue.substring(0, 30)}...'
+                                  : fieldValue,
                               style: const TextStyle(fontSize: 10, color: Colors.grey),
                             )
-                          : const Text('Not available', style: TextStyle(fontSize: 10, color: Colors.red)),
+                          : const Text(
+                              'Not available',
+                              style: TextStyle(fontSize: 10, color: Colors.red),
+                            ),
                       value: _selectedFields[fieldKey] ?? false,
-                      onChanged: fieldValue != null ? (value) {
-                        setState(() {
-                          _selectedFields[fieldKey] = value ?? false;
-                        });
-                      } : null,
+                      onChanged: fieldValue != null
+                          ? (value) {
+                              setState(() {
+                                _selectedFields[fieldKey] = value ?? false;
+                              });
+                            }
+                          : null,
                       controlAffinity: ListTileControlAffinity.leading,
                       activeColor: Colors.blue,
                       dense: true,
@@ -261,16 +339,21 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
             ),
           ),
         ),
-        
+
         const SizedBox(height: 12),
-        
-        // Generate Button
+
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: selectedCount > 0 && !_isLoading ? () => _generateQRCode('share_data') : null,
-            icon: _isLoading 
-                ? const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2))
+            onPressed: selectedCount > 0 && !_isLoading
+                ? () => _generateQRCode('share_data')
+                : null,
+            icon: _isLoading
+                ? const SizedBox(
+                    height: 14,
+                    width: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.qr_code_2, size: 16),
             label: Text(
               _isLoading ? 'Generating...' : 'Generate QR ($selectedCount)',
@@ -297,7 +380,6 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16),
-        
         _buildVerificationOption(
           'age_verification',
           'Identity & Age Verification',
@@ -320,12 +402,11 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
 
   Widget _buildQRCodeView() {
     final isDataSharing = _selectedMode == 'share_data';
-    
+
     return SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -352,19 +433,16 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  isDataSharing 
+                  isDataSharing
                       ? '${_verificationResult?['fieldsCount'] ?? 0} fields shared'
-                      : 'Age: ${_verificationResult?['calculatedAge'] ?? 'N/A'} years',
-                  style: const TextStyle(fontSize: 12),
+                      : 'Verify your age and identity',
+                  style: const TextStyle(fontSize: 12, color: Colors.black),
                   textAlign: TextAlign.center,
                 ),
               ],
             ),
           ),
-          
           const SizedBox(height: 16),
-          
-          // QR Code - RESPONSIVE SIZE
           Card(
             elevation: 2,
             child: Padding(
@@ -390,58 +468,13 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  
-                  // Data Preview
-                  if (isDataSharing && _verificationResult != null)
-                    _buildSharedDataPreview(),
-                  if (!isDataSharing && _verificationResult != null)
-                    _buildAgeVerificationPreview(),
-                  
-                  const SizedBox(height: 12),
-                  
-                  // Instructions
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          '📱 How to Share:',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          '1. Show QR to other party\n'
-                          '2. They scan with any QR app\n'
-                          '3. They see shared information',
-                          style: TextStyle(fontSize: 10),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          isDataSharing 
-                              ? '  ${_verificationResult?['fieldsCount']} data fields'
-                              : '  Age verification',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  if (isDataSharing && _verificationResult != null) _buildSharedDataPreview(),
+                  if (!isDataSharing && _verificationResult != null) _buildAgeVerificationPreview(),
                 ],
               ),
             ),
           ),
-          
           const SizedBox(height: 16),
-          
-          // Action Buttons
           Row(
             children: [
               Expanded(
@@ -479,9 +512,9 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
 
   Widget _buildSharedDataPreview() {
     final sharedData = _verificationResult?['sharedData'] as Map<String, String>?;
-    
+
     if (sharedData == null) return const SizedBox();
-    
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(8),
@@ -504,23 +537,26 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
             ],
           ),
           const SizedBox(height: 6),
-          ...sharedData.entries.map((entry) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 1),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('• ${entry.key}: ', 
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
-                Expanded(
-                  child: Text(
-                    entry.value.length > 25 
-                      ? '${entry.value.substring(0, 25)}...' 
-                      : entry.value,
-                    style: const TextStyle(fontSize: 10)),
-                ),
-              ],
+          ...sharedData.entries.map(
+            (entry) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 1),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '• ${entry.key}: ',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: Colors.black),
+                  ),
+                  Expanded(
+                    child: Text(
+                      entry.value.length > 25 ? '${entry.value.substring(0, 25)}...' : entry.value,
+                      style: const TextStyle(fontSize: 10, color: Colors.black),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          )),
+          ),
         ],
       ),
     );
@@ -538,9 +574,7 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
       child: Row(
         children: [
           Icon(
-            _verificationResult!['isAbove18'] == true 
-                ? Icons.check_circle 
-                : Icons.cancel,
+            _verificationResult!['isAbove18'] == true ? Icons.check_circle : Icons.cancel,
             color: _getStatusColor(_verificationResult!['isAbove18']),
             size: 14,
           ),
@@ -563,14 +597,14 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: const EdgeInsets.all(16),
       child: Container(
         constraints: BoxConstraints(
           maxWidth: 400,
-          maxHeight: screenHeight * 0.8, // Responsive height
+          maxHeight: screenHeight * 0.8,
         ),
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -579,47 +613,32 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
             Text(
               'Digital ID Sharing',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
-            
+
             if (_currentQRData == null) ...[
-              // Mode selection tabs - RESPONSIVE
               Expanded(
                 child: DefaultTabController(
                   length: 2,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: TabBar(
-                          labelColor: Colors.blue,
-                          unselectedLabelColor: Colors.grey,
-                          indicator: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          labelStyle: const TextStyle(fontSize: 12),
-                          unselectedLabelStyle: const TextStyle(fontSize: 12),
-                          tabs: const [
-                            Tab(text: 'Age Verify'),
-                            Tab(text: 'Share Data'),
-                          ],
-                        ),
-                      ),
+                      _buildSegmentTabs(),
                       const SizedBox(height: 12),
-                      // RESPONSIVE TAB CONTENT
                       Flexible(
                         child: TabBarView(
                           children: [
-                            _buildAgeVerificationSection(),
-                            _buildDataSharingSection(),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: _buildAgeVerificationSection(),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: _buildDataSharingSection(),
+                            ),
                           ],
                         ),
                       ),
@@ -628,7 +647,6 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
                 ),
               ),
             ] else ...[
-              // QR Code View - RESPONSIVE
               Flexible(
                 child: _buildQRCodeView(),
               ),

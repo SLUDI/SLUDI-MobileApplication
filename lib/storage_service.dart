@@ -16,7 +16,7 @@ class StorageService {
     final prefs = await _prefs;
     await prefs.setString(_registeredDidKey, did);
     await prefs.setBool(_deviceLockKey, true);
-    print('[StorageService]   DID locked to device: $did');
+    print('[StorageService] DID locked to device: $did');
   }
 
   // Get the registered DID for this device
@@ -35,7 +35,7 @@ class StorageService {
   static Future<void> storeUserData(Map<String, dynamic> userData) async {
     final prefs = await _prefs;
     await prefs.setString(_userDataKey, jsonEncode(userData));
-    print('[StorageService]   User data stored: ${userData['fullName']}');
+    print('[StorageService] User data stored: ${userData['fullName']}');
   }
 
   // Get stored user data
@@ -63,7 +63,7 @@ class StorageService {
   static Future<void> clearUserData() async {
     final prefs = await _prefs;
     await prefs.remove(_userDataKey);
-    print('[StorageService]   User data cleared');
+    print('[StorageService]  User data cleared');
   }
 
   // Clear device lock (for logout or account switching)
@@ -72,7 +72,7 @@ class StorageService {
     await prefs.remove(_registeredDidKey);
     await prefs.remove(_deviceLockKey);
     await prefs.remove(_userDataKey);
-    print('[StorageService]   Device lock and user data cleared');
+    print('[StorageService]  Device lock and user data cleared');
   }
 
   // Check if user data exists

@@ -1221,7 +1221,7 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
   // ----------------------------- VERIFICATION METHOD ----------------------------
   static Future<bool> verifyStoredKeys(String idNumber, String password) async {
     try {
-      print('[verifyStoredKeys] 🔍 Verifying stored keys for ID: $idNumber');
+      print('[verifyStoredKeys] Verifying stored keys for ID: $idNumber');
 
       final keys = await getStoredKeys(idNumber, password);
       if (keys != null) {
@@ -1536,4 +1536,6 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     return 'token_${citizenId}_$timestamp';
   }
+
+  static Future getAuthToken() async {}
 }

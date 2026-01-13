@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:new_project/app_theme.dart';
-import 'presentation_approval_screen.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -14,6 +13,8 @@ class _ScanScreenState extends State<ScanScreen> {
   MobileScannerController cameraController = MobileScannerController();
   bool isFlashOn = false;
   bool isProcessing = false;
+  Map<String, String>? scannedData;
+  String? scannedText;
 
   @override
   void dispose() {
@@ -29,62 +30,208 @@ class _ScanScreenState extends State<ScanScreen> {
     });
 
     try {
+      // Stop camera while processing
       cameraController.stop();
 
-      final uri = Uri.parse(qrData);
-      final pathSegments = uri.pathSegments;
+      // For testing - print the actual data
+      print('QR Code Scanned: $qrData');
 
-      final requestIndex = pathSegments.indexOf('request');
-      if (requestIndex != -1 && requestIndex < pathSegments.length - 1) {
-        final sessionId = pathSegments[requestIndex + 1];
+      // Store the raw text
+      setState(() {
+        scannedText = qrData;
+      });
 
-        final drivingLicenseIndex = pathSegments.indexOf('driving-license');
-        if (drivingLicenseIndex != -1 && drivingLicenseIndex < requestIndex) {
-          if (mounted) {
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PresentationApprovalScreen(
-                  sessionId: sessionId,
-                  requestUrl: qrData,
-                ),
-              ),
-            );
-
-            if (result != true && mounted) {
-              setState(() {
-                isProcessing = false;
-              });
-              cameraController.start();
-            }
-          }
-        } else {
-          _showErrorDialog(
-            'Invalid QR Code',
-            'This QR code is not a valid driving license request.',
-          );
-          setState(() {
-            isProcessing = false;
-          });
-          cameraController.start();
-        }
-      } else {
-        _showErrorDialog(
-          'Invalid QR Code',
-          'This QR code is not a valid request format.',
-        );
+      // Check if it's a text QR code (like driving license info)
+      if (_isTextQRCode(qrData)) {
+        // Extract data from text format
+        final extractedData = _extractDataFromText(qrData);
+        
         setState(() {
-          isProcessing = false;
+          scannedData = extractedData;
         });
-        cameraController.start();
+
+        // Show the scanned data
+        _showScannedDataDialog(extractedData);
       }
+      // Check if it's a URL
+      else if (qrData.contains('://')) {
+        _showScannedTextDialog('URL Detected', qrData);
+      }
+      // Check if it's just text
+      else {
+        _showScannedTextDialog('Text Detected', qrData);
+      }
+
+      // Resume camera after dialog is closed
+      setState(() {
+        isProcessing = false;
+      });
+      cameraController.start();
+
     } catch (e) {
-      _showErrorDialog('Error', 'Failed to process QR code: ${e.toString()}');
+      _showErrorDialog(
+        'Error',
+        'Failed to process QR code: ${e.toString()}',
+      );
       setState(() {
         isProcessing = false;
       });
       cameraController.start();
     }
+  }
+
+  bool _isTextQRCode(String data) {
+    // Check if it contains typical driving license fields
+    return data.contains('Name:') || 
+           data.contains('Address:') || 
+           data.contains('NIC') ||
+           data.contains('Issue Date') ||
+           data.contains('Date of Birth');
+  }
+
+  Map<String, String> _extractDataFromText(String text) {
+    final Map<String, String> data = {};
+    
+    // Split by lines
+    final lines = text.split('\n');
+    
+    for (final line in lines) {
+      if (line.contains(':')) {
+        final parts = line.split(':');
+        if (parts.length >= 2) {
+          final key = parts[0].trim();
+          final value = parts[1].trim();
+          
+          // Map common field names
+          if (key.contains('Name')) {
+            data['name'] = value;
+          } else if (key.contains('Address')) {
+            data['address'] = value;
+          } else if (key.contains('NIC') || key.contains('Nic')) {
+            data['nic'] = value;
+          } else if (key.contains('Issue Date') || key.contains('Issued')) {
+            data['issueDate'] = value;
+          } else if (key.contains('Date of Birth') || key.contains('DOB')) {
+            data['dob'] = value;
+          } else if (key.contains('License') || key.contains('Licence')) {
+            data['licenseNumber'] = value;
+          }
+        }
+      }
+    }
+    
+    return data;
+  }
+
+  void _showScannedDataDialog(Map<String, String> data) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppTheme.darkBg2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.green),
+              const SizedBox(width: 10),
+              const Text('QR Code Scanned', style: TextStyle(color: Colors.white)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (data['name'] != null) ...[
+                  _buildDataRow('Name', data['name']!),
+                  const SizedBox(height: 8),
+                ],
+                if (data['nic'] != null) ...[
+                  _buildDataRow('NIC Number', data['nic']!),
+                  const SizedBox(height: 8),
+                ],
+                if (data['address'] != null) ...[
+                  _buildDataRow('Address', data['address']!),
+                  const SizedBox(height: 8),
+                ],
+                if (data['issueDate'] != null) ...[
+                  _buildDataRow('Issue Date', data['issueDate']!),
+                  const SizedBox(height: 8),
+                ],
+                if (data['dob'] != null) ...[
+                  _buildDataRow('Date of Birth', data['dob']!),
+                  const SizedBox(height: 8),
+                ],
+                if (data['licenseNumber'] != null) ...[
+                  _buildDataRow('License Number', data['licenseNumber']!),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('SCAN AGAIN', style: TextStyle(color: AppTheme.primaryColor)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDataRow(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.6),
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showScannedTextDialog(String title, String content) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppTheme.darkBg2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.qr_code, color: AppTheme.primaryColor),
+              const SizedBox(width: 10),
+              Text(title, style: const TextStyle(color: Colors.white)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Text(
+              content,
+              style: TextStyle(color: Colors.white.withOpacity(0.7)),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK', style: TextStyle(color: AppTheme.primaryColor)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showErrorDialog(String title, String message) {
@@ -101,7 +248,9 @@ class _ScanScreenState extends State<ScanScreen> {
               Text(title, style: const TextStyle(color: Colors.white)),
             ],
           ),
-          content: Text(message, style: TextStyle(color: Colors.white.withOpacity(0.7))),
+          content: SingleChildScrollView(
+            child: Text(message, style: TextStyle(color: Colors.white.withOpacity(0.7))),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -141,9 +290,10 @@ class _ScanScreenState extends State<ScanScreen> {
           ),
 
           // Dark overlay with cutout
-          CustomPaint(
-            size: Size.infinite,
-            painter: ScanOverlayPainter(),
+          Positioned.fill(
+            child: CustomPaint(
+              painter: ScanOverlayPainter(),
+            ),
           ),
 
           // Top bar
@@ -153,10 +303,8 @@ class _ScanScreenState extends State<ScanScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Back button - hidden since this is a tab
                   const SizedBox(width: 48),
                   
-                  // Title
                   const Text(
                     'Scan QR Code',
                     style: TextStyle(
@@ -166,7 +314,6 @@ class _ScanScreenState extends State<ScanScreen> {
                     ),
                   ),
                   
-                  // Flash toggle
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.15),
@@ -188,15 +335,14 @@ class _ScanScreenState extends State<ScanScreen> {
           // Scanning frame
           Center(
             child: Container(
-              width: 280,
-              height: 280,
+              width: MediaQuery.of(context).size.width * 0.7,
+              height: MediaQuery.of(context).size.width * 0.7,
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Stack(
                 children: [
-                  // Animated corners
                   _buildCorner(Alignment.topLeft),
                   _buildCorner(Alignment.topRight),
                   _buildCorner(Alignment.bottomLeft),
@@ -208,7 +354,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
           // Instructions
           Positioned(
-            bottom: 120,
+            bottom: 100,
             left: 0,
             right: 0,
             child: Column(
@@ -251,7 +397,11 @@ class _ScanScreenState extends State<ScanScreen> {
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.all(32),
-                  decoration: AppTheme.glassDecoration(borderRadius: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -275,21 +425,21 @@ class _ScanScreenState extends State<ScanScreen> {
     return Align(
       alignment: alignment,
       child: Container(
-        width: 40,
-        height: 40,
+        width: 30,
+        height: 30,
         decoration: BoxDecoration(
           border: Border(
             top: alignment == Alignment.topLeft || alignment == Alignment.topRight
-                ? const BorderSide(color: AppTheme.primaryColor, width: 4)
+                ? const BorderSide(color: AppTheme.primaryColor, width: 3)
                 : BorderSide.none,
             bottom: alignment == Alignment.bottomLeft || alignment == Alignment.bottomRight
-                ? const BorderSide(color: AppTheme.primaryColor, width: 4)
+                ? const BorderSide(color: AppTheme.primaryColor, width: 3)
                 : BorderSide.none,
             left: alignment == Alignment.topLeft || alignment == Alignment.bottomLeft
-                ? const BorderSide(color: AppTheme.primaryColor, width: 4)
+                ? const BorderSide(color: AppTheme.primaryColor, width: 3)
                 : BorderSide.none,
             right: alignment == Alignment.topRight || alignment == Alignment.bottomRight
-                ? const BorderSide(color: AppTheme.primaryColor, width: 4)
+                ? const BorderSide(color: AppTheme.primaryColor, width: 3)
                 : BorderSide.none,
           ),
         ),
@@ -298,7 +448,6 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 }
 
-// Custom painter for the scan overlay
 class ScanOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -306,11 +455,10 @@ class ScanOverlayPainter extends CustomPainter {
       ..color = Colors.black.withOpacity(0.6)
       ..style = PaintingStyle.fill;
 
-    const scanAreaSize = 280.0;
+    final scanAreaSize = size.width * 0.7;
     final scanAreaLeft = (size.width - scanAreaSize) / 2;
     final scanAreaTop = (size.height - scanAreaSize) / 2;
 
-    // Draw dark overlay with rounded cutout
     final path = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
       ..addRRect(RRect.fromRectAndRadius(
