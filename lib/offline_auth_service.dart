@@ -1,5 +1,6 @@
 // lib/services/offline_auth_service.dart
 import 'dart:convert';
+import 'package:new_project/storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OfflineAuthService {
@@ -357,33 +358,25 @@ class OfflineAuthService {
 
   static Future<void> storeUserDataLocally(Map<String, dynamic> userData) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_userDataKey, jsonEncode(userData));
+      // Use the StorageService which now uses SecureStorage
+      await StorageService.storeUserData(userData);
     } catch (_) {}
   }
 
   static Future<Map<String, dynamic>?> getLocalUserData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final data = prefs.getString(_userDataKey);
-
-      if (data != null) {
-        return jsonDecode(data) as Map<String, dynamic>;
-      }
-      return null;
+      return await StorageService.getUserData();
     } catch (_) {
       return null;
     }
   }
 
   static Future<bool> hasLocalUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey(_userDataKey);
+    return await StorageService.hasUserData();
   }
 
   static Future<void> clearLocalUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_userDataKey);
+    await StorageService.clearUserData();
   }
 
   static Map<String, String> getAvailableFields() {
