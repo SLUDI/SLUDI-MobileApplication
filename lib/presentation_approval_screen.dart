@@ -180,7 +180,7 @@ class _PresentationApprovalScreenState
 
       final did = userData['id']?.toString() ?? '';
       if (did.isEmpty) {
-        print('[createIdentityCredential] ❌ No DID found in user data');
+        print('[createIdentityCredential]   No DID found in user data');
         return null;
       }
 
@@ -244,7 +244,7 @@ class _PresentationApprovalScreenState
       );
 
       print(
-        '[createIdentityCredential] ✅ Identity credential created for DID: $did',
+        '[createIdentityCredential]   Identity credential created for DID: $did',
       );
       print(
         '[createIdentityCredential] Credential subject: $credentialSubject',
@@ -253,7 +253,7 @@ class _PresentationApprovalScreenState
       return identityCredential;
     } catch (e, st) {
       print(
-        '[createIdentityCredential] ❌ Error creating identity credential: $e',
+        '[createIdentityCredential]   Error creating identity credential: $e',
       );
       print(st);
       return null;

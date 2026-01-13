@@ -11,6 +11,8 @@ import 'package:pointycastle/export.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:bip39/bip39.dart' as bip39;
+import 'package:hex/hex.dart';
 
 import 'models/presentation_request.dart';
 import 'models/verifiable_presentation.dart';
@@ -58,6 +60,86 @@ class ApiService {
   }
 
   
+
+  static String generateMnemonic() {
+    return bip39.generateMnemonic();
+  }
+
+  static Future<Map<String, dynamic>> recoverWallet(
+    String idNumber,
+    String password,
+    String mnemonic,
+  ) async {
+    try {
+      print('[recoverWallet]   Starting wallet recovery for ID: $idNumber');
+
+      if (!bip39.validateMnemonic(mnemonic)) {
+        return _err('recoverWallet', 'Invalid mnemonic phrase');
+      }
+
+      // Generate keys from mnemonic
+      final keyPair = await _generateKeyPair(mnemonic: mnemonic);
+      final publicKeyPem = keyPair['publicKey']!;
+      final privateKeyPem = keyPair['privateKey']!;
+
+      print('[recoverWallet]   Keys regenerated from mnemonic');
+
+      // Verify with backend that this wallet exists and keys match
+      final verifyResult = await verifyRecoveryStatus(idNumber, publicKeyPem);
+      if (verifyResult['success'] != true) {
+         return _err('recoverWallet', 'Recovery failed: ${verifyResult['error'] ?? 'Unknown error'}');
+      }
+
+      // Store keys locally
+      await _storeKeysLocally(
+        idNumber,
+        publicKeyPem,
+        privateKeyPem,
+        password,
+      );
+
+      return {
+        'success': true,
+        'message': 'Wallet recovered successfully!',
+      };
+
+    } catch (e, st) {
+      print('[recoverWallet]   Error: $e');
+      print(st);
+      return _err('recoverWallet', 'Recovery failed: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>> verifyRecoveryStatus(String did, String publicKey) async {
+    final uri = Uri.parse('$baseUrl/api/wallet/verify-recovery');
+    try {
+      print('[verifyRecovery] -> POST $uri');
+      
+      final body = jsonEncode({'did': did, 'publicKey': publicKey});
+      
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+        body: body,
+      ).timeout(const Duration(seconds: 30));
+
+      print('[verifyRecovery] <-- ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+           return {'success': true};
+        } else {
+           return {'success': false, 'error': data['message']};
+        }
+      } else {
+        return {'success': false, 'error': 'Server returned ${response.statusCode}'};
+      }
+    } catch (e) {
+      print('[verifyRecovery] Error: $e');
+      return {'success': false, 'error': 'Network error'};
+    }
+  }
 
   // Add this method to your ApiService class
   static Future<ApiResponse<String>> getProfilePhoto(String cid) async {
@@ -169,8 +251,9 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
 
   static Future<Map<String, dynamic>> createWallet(
     String idNumber,
-    String password,
-  ) async {
+    String password, {
+    String? mnemonic,
+  }) async {
     final uri = Uri.parse('$baseUrl/api/wallet/create');
     try {
       print('[createWallet] -> POST $uri');
@@ -180,8 +263,12 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
       Map<String, String> keyPair;
       late String publicKeyPem;
       late String privateKeyPem;
+      
+      // If mnemonic is not provided, generate one
+      final String walletMnemonic = mnemonic ?? generateMnemonic();
+      
       try {
-        keyPair = await _generateKeyPair();
+        keyPair = await _generateKeyPair(mnemonic: walletMnemonic);
         publicKeyPem = keyPair['publicKey']!;
         privateKeyPem = keyPair['privateKey']!;
       } catch (e, st) {
@@ -235,6 +322,7 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
           'success': true,
           'message': responseData['message'] ?? 'Registration successful!',
           'data': responseData,
+          'mnemonic': walletMnemonic, // Return mnemonic to UI
         };
       }
 
@@ -617,11 +705,11 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
     Map<String, dynamic> attributes,
   ) async {
     try {
-      print('[generatePresentationProof] 🔐 Generating presentation proof...');
-      print('[generatePresentationProof]   Holder: $holder');
-      print('[generatePresentationProof]   Session ID: $sessionId');
+      print('[generatePresentationProof] Generating presentation proof...');
+      print('[generatePresentationProof] Holder: $holder');
+      print('[generatePresentationProof] Session ID: $sessionId');
       print(
-        '[generatePresentationProof]   Attributes count: ${attributes.length}',
+        '[generatePresentationProof] Attributes count: ${attributes.length}',
       );
 
       // Get current timestamp
@@ -652,10 +740,10 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
         proofValue: signature,
       );
 
-      print('[generatePresentationProof] ✅ Proof generated successfully');
+      print('[generatePresentationProof] Proof generated successfully');
       return proof;
     } catch (e, st) {
-      print('[generatePresentationProof] ❌ Error generating proof: $e');
+      print('[generatePresentationProof] Error generating proof: $e');
       print(st);
       rethrow;
     }
@@ -669,7 +757,7 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
     String privateKeyPem,
   ) async {
     try {
-      print('[generateSignature] 🔐 Starting signature generation...');
+      print('[generateSignature] Starting signature generation...');
 
       // Build canonical VP string matching backend format
       final canonicalVP = _buildCanonicalVP(sessionId, holder, attributes);
@@ -680,13 +768,13 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
 
       // Parse private key from PEM
       final privateKey = _parsePrivateKeyFromPem(privateKeyPem);
-      print('[generateSignature] ✅ Private key parsed successfully');
+      print('[generateSignature]   Private key parsed successfully');
 
       // Hash the canonical VP message (SHA-256)
       final messageBytes = utf8.encode(canonicalVP);
       final digest = SHA256Digest();
       final hash = digest.process(Uint8List.fromList(messageBytes));
-      print('[generateSignature] ✅ Message hashed with SHA-256');
+      print('[generateSignature]   Message hashed with SHA-256');
 
       // Create and properly seed the secure random
       final secureRandom = FortunaRandom();
@@ -697,7 +785,7 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
         ),
       );
       secureRandom.seed(KeyParameter(seedSource));
-      print('[generateSignature] ✅ Secure random seeded');
+      print('[generateSignature]   Secure random seeded');
 
       // Sign using ECDSA
       final signer = ECDSASigner(SHA256Digest());
@@ -708,18 +796,18 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
 
       signer.init(true, params);
       final signature = signer.generateSignature(hash) as ECSignature;
-      print('[generateSignature] ✅ Signature generated with ECDSA');
+      print('[generateSignature]   Signature generated with ECDSA');
 
       // Encode signature as DER format
       final signatureBytes = _encodeDERSignature(signature);
       final base64Signature = base64Encode(signatureBytes);
 
       print(
-        '[generateSignature] ✅ Signature encoded (Base64): ${base64Signature.length} chars',
+        '[generateSignature]   Signature encoded (Base64): ${base64Signature.length} chars',
       );
       return base64Signature;
     } catch (e, st) {
-      print('[generateSignature] ❌ Error in signature generation: $e');
+      print('[generateSignature]   Error in signature generation: $e');
       print(st);
       rethrow;
     }
@@ -808,7 +896,7 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
 
       // Check if we have a token
       if (authToken == null) {
-        print('[getWalletStatus] ❌ No JWT token available');
+        print('[getWalletStatus]   No JWT token available');
         return _err(
           'getWalletStatus',
           'Not authenticated. Please login first.',
@@ -894,21 +982,21 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      print('[storeKeys] 🗃️ Starting local storage for ID: $idNumber');
+      print('[storeKeys] Starting local storage for ID: $idNumber');
 
       // Store public key in plain text (it's public anyway)
       await prefs.setString('${idNumber}_publicKey', publicKey);
-      print('[storeKeys] ✅ Public key stored (plain text)');
+      print('[storeKeys]   Public key stored (plain text)');
 
       // ENCRYPT the private key with user's password
-      print('[storeKeys] 🔐 Encrypting private key...');
+      print('[storeKeys] Encrypting private key...');
       print(
         '[storeKeys]   Original private key length: ${privateKey.length} chars',
       );
 
       final encryptedPrivateKey = _encryptWithPassword(privateKey, password);
 
-      print('[storeKeys] ✅ Private key encrypted successfully');
+      print('[storeKeys]   Private key encrypted successfully');
       print(
         '[storeKeys]   Encrypted private key length: ${encryptedPrivateKey.length} chars',
       );
@@ -926,8 +1014,8 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
       await prefs.setString('${idNumber}_privateKey', encryptedPrivateKey);
       await prefs.setString('currentWalletId', idNumber);
 
-      print('[storeKeys] 💾 All keys stored in SharedPreferences');
-      print('[storeKeys] 📊 Storage Summary:');
+      print('[storeKeys] All keys stored in SharedPreferences');
+      print('[storeKeys] Storage Summary:');
       print(
         '[storeKeys]   - Public Key: ${publicKey.length} chars (plain text)',
       );
@@ -941,7 +1029,7 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
       final storedPrivateKey = prefs.getString('${idNumber}_privateKey');
 
       if (storedPublicKey != null && storedPrivateKey != null) {
-        print('[storeKeys] ✅ Verification: Keys found in SharedPreferences');
+        print('[storeKeys]   Verification: Keys found in SharedPreferences');
         print(
           '[storeKeys]   Public key present: ${storedPublicKey.isNotEmpty}',
         );
@@ -952,10 +1040,10 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
           '[storeKeys]   Private key is encrypted: ${storedPrivateKey.contains(':')}',
         );
       } else {
-        print('[storeKeys] ❌ WARNING: Keys may not have been stored properly');
+        print('[storeKeys]   WARNING: Keys may not have been stored properly');
       }
     } catch (e, st) {
-      print('[storeKeys] ❌ Storage Error: $e');
+      print('[storeKeys]   Storage Error: $e');
       print(st);
       throw Exception('Failed to store keys locally');
     }
@@ -964,36 +1052,36 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
   // ----------------------------- ENCRYPTION/DECRYPTION METHODS ----------------------------
   static String _encryptWithPassword(String data, String password) {
     try {
-      print('[encryptWithPassword] 🔑 Starting encryption process...');
+      print('[encryptWithPassword]   Starting encryption process...');
 
       // Derive encryption key from password
       final key = _deriveEncryptionKey(password);
-      print('[encryptWithPassword] ✅ Encryption key derived from password');
+      print('[encryptWithPassword]   Encryption key derived from password');
 
       // Generate random IV
       final iv = encrypt.IV.fromSecureRandom(16);
       print(
-        '[encryptWithPassword] ✅ IV generated: ${iv.base64.substring(0, 16)}...',
+        '[encryptWithPassword]   IV generated: ${iv.base64.substring(0, 16)}...',
       );
 
       // Create encryptor
       final encrypter = encrypt.Encrypter(encrypt.AES(key));
-      print('[encryptWithPassword] 🔄 Encrypting data...');
+      print('[encryptWithPassword] Encrypting data...');
 
       // Encrypt the private key
       final encrypted = encrypter.encrypt(data, iv: iv);
-      print('[encryptWithPassword] ✅ Data encrypted successfully');
+      print('[encryptWithPassword]   Data encrypted successfully');
 
       // Store IV + encrypted data together (IV:encrypted_data)
       final result = '${iv.base64}:${encrypted.base64}';
 
-      print('[encryptWithPassword] 📦 Final encrypted package created');
-      print('[encryptWithPassword]   Format: IV:encrypted_data');
-      print('[encryptWithPassword]   Total length: ${result.length} chars');
+      print('[encryptWithPassword] Final encrypted package created');
+      print('[encryptWithPassword] Format: IV:encrypted_data');
+      print('[encryptWithPassword] Total length: ${result.length} chars');
 
       return result;
     } catch (e, st) {
-      print('[encryptWithPassword] ❌ Encryption failed: $e');
+      print('[encryptWithPassword] Encryption failed: $e');
       print(st);
       rethrow;
     }
@@ -1001,19 +1089,19 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
 
   static String? _decryptWithPassword(String encryptedData, String password) {
     try {
-      print('[decryptWithPassword] 🔓 Starting decryption process...');
+      print('[decryptWithPassword]   Starting decryption process...');
 
       // Split IV and encrypted data
       final parts = encryptedData.split(':');
       if (parts.length != 2) {
-        print('[decryptWithPassword] ❌ Invalid encrypted data format');
+        print('[decryptWithPassword] Invalid encrypted data format');
         return null;
       }
 
       final iv = encrypt.IV.fromBase64(parts[0]);
       final encrypted = encrypt.Encrypted.fromBase64(parts[1]);
 
-      print('[decryptWithPassword] ✅ Extracted IV and encrypted data');
+      print('[decryptWithPassword]   Extracted IV and encrypted data');
       print('[decryptWithPassword]   IV: ${parts[0].substring(0, 16)}...');
       print(
         '[decryptWithPassword]   Encrypted data length: ${parts[1].length} chars',
@@ -1021,22 +1109,22 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
 
       // Derive key from password
       final key = _deriveEncryptionKey(password);
-      print('[decryptWithPassword] ✅ Encryption key derived from password');
+      print('[decryptWithPassword]   Encryption key derived from password');
 
       // Create decryptor
       final encrypter = encrypt.Encrypter(encrypt.AES(key));
-      print('[decryptWithPassword] 🔄 Decrypting data...');
+      print('[decryptWithPassword] Decrypting data...');
 
       // Decrypt
       final decrypted = encrypter.decrypt(encrypted, iv: iv);
-      print('[decryptWithPassword] ✅ Data decrypted successfully');
+      print('[decryptWithPassword]   Data decrypted successfully');
       print(
         '[decryptWithPassword]   Decrypted length: ${decrypted.length} chars',
       );
 
       return decrypted;
     } catch (e, st) {
-      print('[decryptWithPassword] ❌ Decryption failed: $e');
+      print('[decryptWithPassword] Decryption failed: $e');
       print(st);
       return null;
     }
@@ -1045,10 +1133,10 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
   static encrypt.Key _deriveEncryptionKey(String password) {
     try {
       print(
-        '[deriveEncryptionKey] 🔧 Deriving encryption key from password...',
+        '[deriveEncryptionKey] Deriving encryption key from password...',
       );
       print(
-        '[deriveEncryptionKey]   Password length: ${password.length} chars',
+        '[deriveEncryptionKey] Password length: ${password.length} chars',
       );
 
       // Simple key derivation - pad/truncate to 32 bytes for AES-256
@@ -1062,12 +1150,12 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
       }
 
       final key = encrypt.Key.fromUtf8(keyMaterial);
-      print('[deriveEncryptionKey] ✅ Encryption key derived');
+      print('[deriveEncryptionKey]   Encryption key derived');
       print('[deriveEncryptionKey]   Key length: 32 bytes (AES-256)');
 
       return key;
     } catch (e, st) {
-      print('[deriveEncryptionKey] ❌ Key derivation failed: $e');
+      print('[deriveEncryptionKey] Key derivation failed: $e');
       print(st);
       rethrow;
     }
@@ -1079,41 +1167,41 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
     String password,
   ) async {
     try {
-      print('[getStoredKeys] 🔍 Retrieving stored keys for ID: $idNumber');
+      print('[getStoredKeys] Retrieving stored keys for ID: $idNumber');
 
       final prefs = await SharedPreferences.getInstance();
       final publicKey = prefs.getString('${idNumber}_publicKey');
       final encryptedPrivateKey = prefs.getString('${idNumber}_privateKey');
 
       if (publicKey != null && encryptedPrivateKey != null) {
-        print('[getStoredKeys] ✅ Found stored keys');
-        print('[getStoredKeys]   Public key present: ${publicKey.isNotEmpty}');
+        print('[getStoredKeys] Found stored keys');
+        print('[getStoredKeys] Public key present: ${publicKey.isNotEmpty}');
         print(
           '[getStoredKeys]   Private key present (encrypted): ${encryptedPrivateKey.isNotEmpty}',
         );
 
         // Decrypt the private key
-        print('[getStoredKeys] 🔓 Decrypting private key...');
+        print('[getStoredKeys]   Decrypting private key...');
         final privateKey = _decryptWithPassword(encryptedPrivateKey, password);
 
         if (privateKey != null) {
-          print('[getStoredKeys] ✅ Private key decrypted successfully');
+          print('[getStoredKeys]   Private key decrypted successfully');
           if (logFullPublicKey) {
-            print('[getStoredKeys] 🔑 Public Key (PEM):\n$publicKey');
+            print('[getStoredKeys] Public Key (PEM):\n$publicKey');
           }
           return {'publicKey': publicKey, 'privateKey': privateKey};
         } else {
           print(
-            '[getStoredKeys] ❌ Failed to decrypt private key - wrong password?',
+            '[getStoredKeys] Failed to decrypt private key - wrong password?',
           );
           return null;
         }
       }
 
-      print('[getStoredKeys] ❌ No keys found for ID: $idNumber');
+      print('[getStoredKeys] No keys found for ID: $idNumber');
       return null;
     } catch (e, st) {
-      print('[getStoredKeys] ❌ Error: $e');
+      print('[getStoredKeys] Error: $e');
       print(st);
       return null;
     }
@@ -1137,14 +1225,14 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
 
       final keys = await getStoredKeys(idNumber, password);
       if (keys != null) {
-        print('[verifyStoredKeys] ✅ Keys verified and accessible');
+        print('[verifyStoredKeys]   Keys verified and accessible');
         return true;
       } else {
-        print('[verifyStoredKeys] ❌ Keys verification failed');
+        print('[verifyStoredKeys] Keys verification failed');
         return false;
       }
     } catch (e, st) {
-      print('[verifyStoredKeys] ❌ Verification error: $e');
+      print('[verifyStoredKeys] Verification error: $e');
       print(st);
       return false;
     }
@@ -1158,7 +1246,7 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
       final publicKey = prefs.getString('${idNumber}_publicKey');
       final privateKey = prefs.getString('${idNumber}_privateKey');
 
-      print('[clearStoredKeys] 🗑️ Clearing stored keys for ID: $idNumber');
+      print('[clearStoredKeys]   Clearing stored keys for ID: $idNumber');
       print('[clearStoredKeys]   Public key present: ${publicKey != null}');
       print('[clearStoredKeys]   Private key present: ${privateKey != null}');
       if (privateKey != null) {
@@ -1171,26 +1259,36 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
       await prefs.remove('${idNumber}_privateKey');
       await prefs.remove('currentWalletId');
 
-      print('[clearStoredKeys] ✅ Keys cleared for ID=$idNumber');
+      print('[clearStoredKeys]   Keys cleared for ID=$idNumber');
     } catch (e, st) {
-      print('[clearStoredKeys] ❌ Error: $e');
+      print('[clearStoredKeys] Error: $e');
       print(st);
     }
   }
 
   // ----------------------------- CRYPTO HELPERS -----------------------------
 
-  static Future<Map<String, String>> _generateKeyPair() async {
+  static Future<Map<String, String>> _generateKeyPair({String? mnemonic}) async {
     final keyGen = ECKeyGenerator();
     final secureRandom = FortunaRandom();
 
     // Seed the random number generator
-    final seedSource = Uint8List.fromList(
-      List<int>.generate(
-        32,
-        (i) => DateTime.now().millisecondsSinceEpoch % 256,
-      ),
-    );
+    Uint8List seedSource;
+    if (mnemonic != null) {
+      // Deterministic seed from mnemonic
+      final seed = bip39.mnemonicToSeed(mnemonic);
+      // Use first 32 bytes for seeding
+      seedSource = seed.sublist(0, 32);
+      print('[generateKeyPair]   Using deterministic seed from mnemonic');
+    } else {
+      seedSource = Uint8List.fromList(
+        List<int>.generate(
+          32,
+          (i) => DateTime.now().millisecondsSinceEpoch % 256,
+        ),
+      );
+      print('[generateKeyPair]   Using random seed');
+    }
     secureRandom.seed(KeyParameter(seedSource));
 
     // Use secp256r1 (P-256) curve - compatible with Hyperledger Fabric
@@ -1360,7 +1458,7 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
             // Note: We're NOT requiring livenessCheckPassed since it's often false
 
             print(
-              '[verifyVideoWithEmbedding] ✅ Verification completed - '
+              '[verifyVideoWithEmbedding]   Verification completed - '
               'Similarity: ${(similarity * 100).toStringAsFixed(2)}% '
               '(Threshold: ${(thresholdUsed * 100).toStringAsFixed(2)}%)',
             );
@@ -1420,7 +1518,7 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
         };
       }
     } catch (e) {
-      print('[verifyVideoWithEmbedding] ❌ Error: $e');
+      print('[verifyVideoWithEmbedding] Error: $e');
       return {
         'success': false,
         'error': 'Network error: $e',

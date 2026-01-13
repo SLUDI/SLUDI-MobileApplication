@@ -334,8 +334,8 @@ class _FaceDetectionScreenImprovedState extends State<FaceDetectionScreen> {
           _similarityScore = similarity;
           _verificationDetails = verificationData;
           _faceStatus = isVerified
-              ? '✅ Identity Verified!'
-              : '❌ Verification Failed';
+              ? '  Identity Verified!'
+              : '  Verification Failed';
         });
 
         // If verification is successful and we have a token, handle login
@@ -395,7 +395,7 @@ class _FaceDetectionScreenImprovedState extends State<FaceDetectionScreen> {
     try {
       // Store the JWT token using the existing ApiService method
       ApiService.setAuthToken(jwtToken);
-      print('[FaceDetection] ✅ JWT token stored: ${jwtToken.substring(0, 30)}...');
+      print('[FaceDetection]   JWT token stored: ${jwtToken.substring(0, 30)}...');
       
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -418,7 +418,7 @@ class _FaceDetectionScreenImprovedState extends State<FaceDetectionScreen> {
         );
       }
     } catch (e) {
-      print('[FaceDetection] ❌ Error during login: $e');
+      print('[FaceDetection]   Error during login: $e');
       setState(() {
         _errorMessage = 'Login failed. Please try again.';
       });

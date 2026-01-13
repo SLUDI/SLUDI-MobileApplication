@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:new_project/login_screen.dart';
 import 'package:new_project/api_service.dart';
 import 'package:new_project/app_theme.dart';
+import 'package:new_project/backup_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   final String idNumber;
@@ -50,10 +51,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
         await Future.delayed(const Duration(milliseconds: 1500));
         
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const LoginScreen()),
-          );
+          final mnemonic = response['mnemonic'];
+          if (mnemonic != null) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => BackupScreen(mnemonic: mnemonic)),
+            );
+          } else {
+            // Fallback if no mnemonic (shouldn't happen with new logic)
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const LoginScreen()),
+            );
+          }
         }
       } else {
         final err = response['error'] ?? 'Registration failed';

@@ -22,6 +22,7 @@ import 'package:pointycastle/ecc/api.dart';
 import 'package:pointycastle/ecc/curves/prime256v1.dart';
 import 'package:pointycastle/random/fortuna_random.dart';
 import 'package:pointycastle/signers/ecdsa_signer.dart';
+import 'recover_wallet_screen.dart';
 import 'main_screen.dart';
 import 'api_service.dart';
 import 'package:provider/provider.dart';
@@ -114,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (walletData['success'] == true && walletData['data'] != null) {
         // Store the complete wallet data for offline use
         await OfflineAuthService.storeUserDataLocally(walletData['data']);
-        print('[Login] ✅ User data stored locally for offline use');
+        print('[Login]   User data stored locally for offline use');
       } else {
         print('[Login] ⚠️ Could not fetch user data: ${walletData['error'] ?? 'Unknown error'}');
       }
@@ -150,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
       print('[Login] Starting authentication for DID: $enteredDid');
 
       // Step 1: Retrieve and decrypt private key
-      print('[Login] 🔑 Retrieving stored keys...');
+      print('[Login]   Retrieving stored keys...');
       final keys = await ApiService.getStoredKeys(enteredDid, password);
 
       if (keys == null) {
@@ -163,10 +164,10 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final String privateKeyPem = keys['privateKey']!;
-      print('[Login] ✅ Private key decrypted successfully');
+      print('[Login]   Private key decrypted successfully');
 
       // Step 2: Get challenge from backend
-      print('[Login] 🔄 Requesting challenge from backend...');
+      print('[Login]   Requesting challenge from backend...');
       final challengeResult = await _getChallenge(enteredDid);
 
       if (!challengeResult['success']) {
@@ -179,15 +180,15 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final String challenge = challengeResult['challenge']!;
-      print('[Login] ✅ Received challenge: $challenge');
+      print('[Login]   Received challenge: $challenge');
 
       // Step 3: Sign the challenge with private key
       print('[Login] ✍️ Signing challenge...');
       final String signature = await _signChallenge(challenge, privateKeyPem);
-      print('[Login] ✅ Challenge signed successfully');
+      print('[Login]   Challenge signed successfully');
 
       // Step 4: Verify signature with backend and get JWT token
-      print('[Login] 🔄 Verifying signature with backend...');
+      print('[Login]   Verifying signature with backend...');
       final verifyResult = await _verifyChallenge(enteredDid, signature);
 
       print('[Login] Verify result success: ${verifyResult['success']}');
@@ -198,9 +199,9 @@ class _LoginScreenState extends State<LoginScreen> {
         if (jwtToken != null && jwtToken.isNotEmpty) {
           // Store the token in ApiService
           ApiService.setAuthToken(jwtToken);
-          print('[Login] ✅ JWT token stored in ApiService');
+          print('[Login]   JWT token stored in ApiService');
 
-          // ✅ Lock device to this DID
+          //   Lock device to this DID
           if (!_isDidLocked && _deviceLockedDid == null) {
             await StorageService.setRegisteredDid(enteredDid);
             setState(() {
@@ -210,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
             print('[Login] 🔒 Device now locked to DID: $enteredDid');
           }
 
-          // ✅ Fetch and store user data for offline features (QR scanning, etc.)
+          //   Fetch and store user data for offline features (QR scanning, etc.)
           await _fetchAndStoreUserData();
 
           ScaffoldMessenger.of(
@@ -218,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ).showSnackBar(const SnackBar(content: Text('Login successful!')));
           _navigateToMainScreen();
         } else {
-          print('[Login] ❌ Empty or null token received from verifyChallenge');
+          print('[Login]   Empty or null token received from verifyChallenge');
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
@@ -235,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e, st) {
-      print('[Login] ❌ Authentication error: $e');
+      print('[Login]   Authentication error: $e');
       print(st);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -273,7 +274,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    print('[LoginScreen] ✅ User data loaded: ${userData['fullName']}');
+    print('[LoginScreen]   User data loaded: ${userData['fullName']}');
     print('[LoginScreen] User DOB: ${userData['dateOfBirth']}');
 
     showDialog(
@@ -390,19 +391,19 @@ class _LoginScreenState extends State<LoginScreen> {
         if (responseData['success'] == true) {
           final nonce = responseData['data']?['nonce'] ?? responseData['nonce'];
           if (nonce != null) {
-            print('[getChallenge] ✅ Extracted nonce: $nonce');
+            print('[getChallenge]   Extracted nonce: $nonce');
             return {'success': true, 'challenge': nonce.toString()};
           } else {
-            print('[getChallenge] ❌ No nonce found in response');
+            print('[getChallenge]   No nonce found in response');
           }
         } else {
-          print('[getChallenge] ❌ API returned success: false');
+          print('[getChallenge]   API returned success: false');
         }
         return {'success': false, 'error': 'No challenge/nonce received'};
       } else {
         final errorData = jsonDecode(response.body);
         final errorMsg = errorData['message'] ?? 'Failed to get challenge';
-        print('[getChallenge] ❌ HTTP Error: $errorMsg');
+        print('[getChallenge]   HTTP Error: $errorMsg');
         return {'success': false, 'error': errorMsg};
       }
     } on TimeoutException catch (e) {
@@ -495,7 +496,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
           if (token != null && token.isNotEmpty) {
             print(
-              '[verifyChallenge] ✅ JWT token extracted: ${token.substring(0, 30)}...',
+              '[verifyChallenge]   JWT token extracted: ${token.substring(0, 30)}...',
             );
             return {
               'success': true,
@@ -503,7 +504,7 @@ class _LoginScreenState extends State<LoginScreen> {
               'token': token,
             };
           } else {
-            print('[verifyChallenge] ❌ No token found in response');
+            print('[verifyChallenge]   No token found in response');
             return {
               'success': false,
               'error': 'No authentication token received from server',
@@ -621,9 +622,9 @@ class _LoginScreenState extends State<LoginScreen> {
           if (jwtToken != null && jwtToken.isNotEmpty) {
             // Store the token in ApiService (same as password login)
             ApiService.setAuthToken(jwtToken);
-            print('[FaceLogin] ✅ JWT token stored in ApiService');
+            print('[FaceLogin]   JWT token stored in ApiService');
 
-            // ✅ Lock device to this DID (if not already locked)
+            //   Lock device to this DID (if not already locked)
             if (!_isDidLocked) {
               await StorageService.setRegisteredDid(_deviceLockedDid!);
               setState(() {
@@ -634,7 +635,7 @@ class _LoginScreenState extends State<LoginScreen> {
               );
             }
 
-            // ✅ Fetch and store user data for offline features (QR scanning, etc.)
+            //   Fetch and store user data for offline features (QR scanning, etc.)
             await _fetchAndStoreUserData();
 
             ScaffoldMessenger.of(context).showSnackBar(
@@ -643,7 +644,7 @@ class _LoginScreenState extends State<LoginScreen> {
             _navigateToMainScreen();
           } else {
             print(
-              '[FaceLogin] ❌ Empty or null token received from face verification',
+              '[FaceLogin]   Empty or null token received from face verification',
             );
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -772,7 +773,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (jwtToken != null && jwtToken.isNotEmpty) {
         ApiService.setAuthToken(jwtToken);
-        print('[FaceLogin] ✅ JWT token stored in ApiService');
+        print('[FaceLogin]   JWT token stored in ApiService');
 
         if (!_isDidLocked) {
           await StorageService.setRegisteredDid(_deviceLockedDid!);
@@ -781,7 +782,7 @@ class _LoginScreenState extends State<LoginScreen> {
           });
         }
 
-        // ✅ Fetch and store user data for offline features (QR scanning, etc.)
+        //   Fetch and store user data for offline features (QR scanning, etc.)
         await _fetchAndStoreUserData();
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1141,6 +1142,36 @@ class _LoginScreenState extends State<LoginScreen> {
                             'Don\'t have an account? Register',
                             style: TextStyle(
                               fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Recover wallet
+                      Center(
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.orange,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 2,
+                            ),
+                          ),
+                          onPressed: _isLoading
+                              ? null
+                              : () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const RecoverWalletScreen(),
+                                    ),
+                                  );
+                                },
+                          child: const Text(
+                            'Lost your phone? Recover Wallet',
+                            style: TextStyle(
+                              fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
                           ),

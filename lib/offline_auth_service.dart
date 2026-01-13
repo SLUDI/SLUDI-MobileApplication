@@ -243,7 +243,7 @@ class OfflineAuthService {
       
       for (final location in credentialLocations) {
         if (userData[location] is List && (userData[location] as List).isNotEmpty) {
-          print('[OfflineAuthService] ✅ Found credentials in: $location');
+          print('[OfflineAuthService]   Found credentials in: $location');
           final credentials = userData[location] as List;
           print('[OfflineAuthService] Number of credentials: ${credentials.length}');
           
@@ -256,7 +256,7 @@ class OfflineAuthService {
             // Check for credentialSubject
             if (firstCredential['credentialSubject'] is Map) {
               final credentialSubject = firstCredential['credentialSubject'] as Map<String, dynamic>;
-              print('[OfflineAuthService] ✅ Found credentialSubject');
+              print('[OfflineAuthService]   Found credentialSubject');
               print('[OfflineAuthService] CredentialSubject keys: ${credentialSubject.keys.toList()}');
               
               // Extract the data we need
@@ -290,12 +290,12 @@ class OfflineAuthService {
               print('[OfflineAuthService] 🎯 Extracted data: $result');
               return result;
             } else {
-              print('[OfflineAuthService] ❌ credentialSubject not found or not a Map');
+              print('[OfflineAuthService]   credentialSubject not found or not a Map');
               print('[OfflineAuthService] Available keys in credential: ${firstCredential.keys.toList()}');
             }
           }
         } else {
-          print('[OfflineAuthService] ❌ No credentials found in: $location');
+          print('[OfflineAuthService]   No credentials found in: $location');
           if (userData.containsKey(location)) {
             print('[OfflineAuthService] $location exists but is: ${userData[location]} (type: ${userData[location].runtimeType})');
           }
@@ -317,7 +317,7 @@ class OfflineAuthService {
       return rootData;
       
     } catch (e) {
-      print('[OfflineAuthService] ❌ Error extracting credentials: $e');
+      print('[OfflineAuthService]   Error extracting credentials: $e');
       print('[OfflineAuthService] Stack trace: ${e.toString()}');
       return {};
     }
@@ -332,7 +332,7 @@ class OfflineAuthService {
     required bool isAbove18,
   }) {
     final status = isAbove18 ? 'OVER 18 - ELIGIBLE' : 'UNDER 18 - NOT ELIGIBLE';
-    final emoji = isAbove18 ? '✅' : '❌';
+    final emoji = isAbove18 ? ' ' : ' ';
     final title = isAbove18 ? 'AGE VERIFICATION PASSED' : 'AGE VERIFICATION FAILED';
     
     return '$emoji $title\n\n'
@@ -432,16 +432,16 @@ class OfflineAuthService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_userDataKey, jsonEncode(userData));
-      print('[OfflineAuthService] ✅ User data stored locally');
+      print('[OfflineAuthService]   User data stored locally');
       
       // Debug: Verify what we stored
       final stored = await getLocalUserData();
       if (stored != null) {
         final extracted = extractUserDataFromCredentials(stored);
-        print('[OfflineAuthService] ✅ Verified stored data extraction: $extracted');
+        print('[OfflineAuthService]   Verified stored data extraction: $extracted');
       }
     } catch (e) {
-      print('[OfflineAuthService] ❌ Error storing user data: $e');
+      print('[OfflineAuthService]   Error storing user data: $e');
     }
   }
   
@@ -453,15 +453,15 @@ class OfflineAuthService {
       
       if (data != null) {
         final userData = jsonDecode(data) as Map<String, dynamic>;
-        print('[OfflineAuthService] ✅ Retrieved local user data');
+        print('[OfflineAuthService]   Retrieved local user data');
         print('[OfflineAuthService] Stored data keys: ${userData.keys.toList()}');
         return userData;
       } else {
-        print('[OfflineAuthService] ❌ No local user data found');
+        print('[OfflineAuthService]   No local user data found');
         return null;
       }
     } catch (e) {
-      print('[OfflineAuthService] ❌ Error reading local user data: $e');
+      print('[OfflineAuthService]   Error reading local user data: $e');
       return null;
     }
   }
@@ -478,7 +478,7 @@ class OfflineAuthService {
   static Future<void> clearLocalUserData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_userDataKey);
-    print('[OfflineAuthService] ✅ Local user data cleared');
+    print('[OfflineAuthService]   Local user data cleared');
   }
   
   // Get available fields for data sharing

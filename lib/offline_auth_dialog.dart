@@ -423,8 +423,8 @@ class _OfflineAuthDialogState extends State<OfflineAuthDialog> {
                         const SizedBox(height: 6),
                         Text(
                           isDataSharing 
-                              ? '✅ ${_verificationResult?['fieldsCount']} data fields'
-                              : '✅ Age verification',
+                              ? '  ${_verificationResult?['fieldsCount']} data fields'
+                              : '  Age verification',
                           style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
