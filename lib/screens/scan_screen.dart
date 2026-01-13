@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:new_project/app_theme.dart';
+import 'presentation_approval_screen.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -41,6 +42,31 @@ class _ScanScreenState extends State<ScanScreen> {
         scannedText = qrData;
       });
 
+      // Check if it's a presentation request URL
+      if (qrData.contains('/api/wallet/driving-license/request/')) {
+        final uri = Uri.parse(qrData);
+        final pathSegments = uri.pathSegments;
+        // Expected format: .../request/{sessionId}
+        final sessionId = pathSegments.last;
+        
+        if (sessionId.isNotEmpty) {
+           setState(() {
+            isProcessing = false;
+          });
+          
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PresentationApprovalScreen(
+                sessionId: sessionId,
+                requestUrl: qrData,
+              ),
+            ),
+          ).then((_) => cameraController.start());
+          return;
+        }
+      }
+
       // Check if it's a text QR code (like driving license info)
       if (_isTextQRCode(qrData)) {
         // Extract data from text format
@@ -63,10 +89,12 @@ class _ScanScreenState extends State<ScanScreen> {
       }
 
       // Resume camera after dialog is closed
-      setState(() {
-        isProcessing = false;
-      });
-      cameraController.start();
+      if (mounted) {
+        setState(() {
+          isProcessing = false;
+        });
+        cameraController.start();
+      }
 
     } catch (e) {
       _showErrorDialog(
