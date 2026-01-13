@@ -61,7 +61,7 @@ class _PresentationApprovalScreenState
       _presentationRequest = requestResponse.data!;
 
       final data = await OfflineAuthService.getLocalUserData();
-      final userData = OfflineAuthService.extractUserDataFromCredentials(data!);
+      final userData = OfflineAuthService.extractAllUserData(data!);
 
       _userCredential = _createIdentityCredential(userData);
 
@@ -185,35 +185,44 @@ class _PresentationApprovalScreenState
       }
 
       // Parse address from user data if available
+      final addressMap = userData['address'] is Map ? userData['address'] : {};
+
       final address = AddressDto(
         street:
+            addressMap['street']?.toString() ??
             userData['address.street']?.toString() ??
             userData['addressStreet']?.toString() ??
-            'Unknown Street',
+            'UNKNOWN',
         city:
+            addressMap['city']?.toString() ??
             userData['address.city']?.toString() ??
             userData['addressCity']?.toString() ??
-            'Unknown City',
+            'UNKNOWN',
         district:
+            addressMap['district']?.toString() ??
             userData['address.district']?.toString() ??
             userData['addressDistrict']?.toString() ??
-            'Unknown District',
+            'UNKNOWN',
         postalCode:
+            addressMap['postalCode']?.toString() ??
             userData['address.postalCode']?.toString() ??
             userData['addressPostalCode']?.toString() ??
-            '00000',
+            'UNKNOWN',
         divisionalSecretariat:
+            addressMap['divisionalSecretariat']?.toString() ??
             userData['address.divisionalSecretariat']?.toString() ??
             userData['addressDivisionalSecretariat']?.toString() ??
-            'Unknown Divisional Secretariat',
+            'UNKNOWN',
         gramaNiladhariDivision:
+            addressMap['gramaNiladhariDivision']?.toString() ??
             userData['address.gramaNiladhariDivision']?.toString() ??
             userData['addressGramaNiladhariDivision']?.toString() ??
-            'Unknown Grama Niladhari Division',
+            'UNKNOWN',
         province:
+            addressMap['province']?.toString() ??
             userData['address.province']?.toString() ??
             userData['addressProvince']?.toString() ??
-            'Unknown Province',
+            'UNKNOWN',
       );
 
       // Create credential subject from user data
