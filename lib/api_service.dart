@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:bip39/bip39.dart' as bip39;
 import 'package:hex/hex.dart';
+import 'package:new_project/services/secure_storage_service.dart';
 
 import 'models/presentation_request.dart';
 import 'models/verifiable_presentation.dart';
@@ -980,13 +981,13 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
     String password,
   ) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final secureStorage = SecureStorageService();
 
       print('[storeKeys] Starting local storage for ID: $idNumber');
 
-      // Store public key in plain text (it's public anyway)
-      await prefs.setString('${idNumber}_publicKey', publicKey);
-      print('[storeKeys]   Public key stored (plain text)');
+      // Store public key in plain text (safe in secure storage too)
+      await secureStorage.write('${idNumber}_publicKey', publicKey);
+      print('[storeKeys] Public key stored (plain text inside secure storage)');
 
       // ENCRYPT the private key with user's password
       print('[storeKeys] Encrypting private key...');
@@ -1011,8 +1012,8 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
         }
       }
 
-      await prefs.setString('${idNumber}_privateKey', encryptedPrivateKey);
-      await prefs.setString('currentWalletId', idNumber);
+      await secureStorage.write('${idNumber}_privateKey', encryptedPrivateKey);
+      await secureStorage.write('currentWalletId', idNumber);
 
       print('[storeKeys] All keys stored in SharedPreferences');
       print('[storeKeys] Storage Summary:');
@@ -1025,8 +1026,8 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
       print('[storeKeys]   - Current Wallet ID: $idNumber');
 
       // Verify storage
-      final storedPublicKey = prefs.getString('${idNumber}_publicKey');
-      final storedPrivateKey = prefs.getString('${idNumber}_privateKey');
+      final storedPublicKey = await secureStorage.read('${idNumber}_publicKey');
+      final storedPrivateKey = await secureStorage.read('${idNumber}_privateKey');
 
       if (storedPublicKey != null && storedPrivateKey != null) {
         print('[storeKeys]   Verification: Keys found in SharedPreferences');
@@ -1169,9 +1170,9 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
     try {
       print('[getStoredKeys] Retrieving stored keys for ID: $idNumber');
 
-      final prefs = await SharedPreferences.getInstance();
-      final publicKey = prefs.getString('${idNumber}_publicKey');
-      final encryptedPrivateKey = prefs.getString('${idNumber}_privateKey');
+      final secureStorage = SecureStorageService();
+      final publicKey = await secureStorage.read('${idNumber}_publicKey');
+      final encryptedPrivateKey = await secureStorage.read('${idNumber}_privateKey');
 
       if (publicKey != null && encryptedPrivateKey != null) {
         print('[getStoredKeys] Found stored keys');
@@ -1209,8 +1210,8 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
 
   static Future<String?> getCurrentWalletId() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString('currentWalletId');
+      final secureStorage = SecureStorageService();
+      return await secureStorage.read('currentWalletId');
     } catch (e, st) {
       print('[getCurrentWalletId] Error: $e');
       print(st);
@@ -1240,11 +1241,11 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
 
   static Future<void> clearStoredKeys(String idNumber) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final secureStorage = SecureStorageService();
 
       // Check what we're clearing
-      final publicKey = prefs.getString('${idNumber}_publicKey');
-      final privateKey = prefs.getString('${idNumber}_privateKey');
+      final publicKey = await secureStorage.read('${idNumber}_publicKey');
+      final privateKey = await secureStorage.read('${idNumber}_privateKey');
 
       print('[clearStoredKeys]   Clearing stored keys for ID: $idNumber');
       print('[clearStoredKeys]   Public key present: ${publicKey != null}');
@@ -1255,9 +1256,9 @@ static Future<ApiResponse<List<PresentationHistory>>> getPresentationHistory() a
         );
       }
 
-      await prefs.remove('${idNumber}_publicKey');
-      await prefs.remove('${idNumber}_privateKey');
-      await prefs.remove('currentWalletId');
+      await secureStorage.delete('${idNumber}_publicKey');
+      await secureStorage.delete('${idNumber}_privateKey');
+      await secureStorage.delete('currentWalletId');
 
       print('[clearStoredKeys]   Keys cleared for ID=$idNumber');
     } catch (e, st) {
